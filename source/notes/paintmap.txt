@@ -1,0 +1,84 @@
+Paint mapping.
+==============
+
+The paints can be grouped depending on how many dimensions they have.
+
+Solid color, has zero dimentions, it is the same everywhere.
+Linear gradient, has one dimension, it varies only along one axis
+Radial gradient, texture fill, are two dimensional, they vary along two axes
+
+For radial and anglular you convert the two distances along the axes to either a radius or an angle. For texture fill they provide a offset into the texture.
+
+1 dimensional.
+==============
+
+defined by 2 points, (x0,y0) --> (x1,y1), so...
+
+w = x1-x0
+h = y1-y0
+
+x = x0 + t*w
+y = y0 + t*h
+
+So that defines the axis along which the paint varies, with t=0 at x0,y0 and t=1 at x1,y1. 
+
+We want to find the paint color for point (x2,y2), and we do this by drawing a line through (x2,y2) that is perpendicular to the line (x0,y0)-->(x1,y1). And we look for the value of 't' at the intersection of these two lines... The perpendicular line is thus...
+
+x = x2 + u*h
+y = y2 - u*w
+
+And if we are looking for the intersection then...
+
+i) x0 + t*w = x2 + u*h
+ii) y0 + t*h = y2 - u*w
+
+rearange i)
+
+u = (x0 + t*w - x2) / h
+
+sub that into ii)
+
+y0 + t*h = y2 - (x0 + t*w - x2)*w/h
+y0 + t*h = y2 - (x0 - x2)*w/h - t*w*w/h
+t*h + t*w*w/h = y2 - y0 - (x0 - x2)*w/h
+t*h + t*w*w/h = y2 - y0 - (x0 - x2)*w/h
+t*h*h + t*w*w = (y2 - y0)*h - (x0 - x2)*w
+t(h^2 + w^2) =  (y2 - y0)*h - (x0 - x2)*w
+t = ((y2 - y0)*h + (x2 - x0)*w) / (h^2 + w^2)
+
+So we have a way to evalute 't' for any point. We can split that equation up and pull some stuff out that can be precomputed and it also makes the equation a bit more intuative...
+
+stepx = w / (w^2 + h^2) 
+stepy = h / (w^2 + h^2) 
+
+t = (x2-x0)*stepx + (y2-y0)*stepy
+
+2 dimensions.
+=============
+
+For this you just define two axes and calculate 't' seprately for each. So...
+
+axis 0 : (x0,y0) --> (x1,y1)
+axis 1 : (x0,y0) --> (x2,y2)
+
+Generally you want the two axes to be at right angles and to share (x0,y0) but as far as I know there's no reason they have to do that.
+
+w0 = x1-x0
+h0 = y1-y0
+
+stepx0 = w0 / (w0^2 + h0^2) 
+stepy0 = h0 / (w0^2 + h0^2) 
+
+t0 = (x2-x0)*stepx0 + (y2-y0)*stepy0
+
+w1 = x1-x0
+h1 = y1-y0
+
+stepx1 = w1 / (w1^2 + h1^2) 
+stepy1 = h1 / (w1^2 + h1^2) 
+
+t1 = (x2-x0)*stepx1 + (y2-y0)*stepy1
+
+for texture paint you use t0,t1 to map into the texture
+for radial paint r = sqrt(t0^2+t1^2) maps to the gradient
+for angular paint a = atan2(t1,t0) maps to the gradient

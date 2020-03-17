@@ -1,0 +1,91 @@
+﻿Compositing is the process of combining two images to create a third. Typically its implemented as drawing one image onto another (a = a op b), and in vector graphics terms it's usually the process of drawing the filled vector path (the source) onto a destination image. In general terms the source and destination each have an alpha channel which is a mask defining their shape. From those two masks we can derive 4 new masks...
+
+sA = source alpha
+dA = destination alpha
+
+1. (1-dA)*(1-sA) : neither source or destination.
+2. sA*(1-dA) : source only
+3. dA*(1-sA) : destination only
+4. dA*sA : both source and destination
+
+If you imagine source and destination as two shapes partialy overlapping (like a venn diagram), '1' is the area completely outside both shapes, '2' is the area inside the source but not the destination, '3' is the area inside the destination but not the source, and '4' is the area where source and destination overlap.
+
+Then you do a linear sum with each mask multiplied by the colour you want in that region...
+
+result = color1*(1-dA)*(1-sA) + color2*sA*(1-dA) + color3*dA*(1-sA) + color4*dA*sA 
+
+In practice each region has a limited choice of what to use to fill it because for example in the "source only" region there is no destination colour to use, so you have these options...
+
+1. empty, essentialy this region has no ouput.
+2. source colour or empty
+3. destination colour or empty
+4. destination, source, or empty
+
+(For 'empty' you just set the colour to 0)
+
+So the above equation can be written thus..
+
+sC = source color
+dC = destination color
+
+S = [sC | 0]
+D = [dC | 0]
+B = [sC | dC | 0 ]
+
+i) result = S*sA*(1-dA) + D*dA*(1-sA) +B*dA*sA 
+
+From that you get 12 compositing operators defined by porter and duff.
+
+That basic porter/duff set of operators can be extended by chosing a a different way of combing the colours in the both region, this is done by defining B thus..
+
+B = F(sC,dC)
+
+So for example for the "add" operator is...
+
+B = clamp(sC+dC)
+
+where clamp() limits the values to valid range. So to get other blend modes...
+
+B = [sC | dC | 0 | F(sC,dC) ]
+
+===================================================
+
+If the destination is plain RGB it has no alpha channel which means every destination pixel has an implicit alpha of 1. So if you define "dA=1", that can be substituted into the blend equation... 
+
+result = S*sA*(1-dA) + D*dA*(1-sA) +B*dA*sA
+
+Which simplifies to...
+
+result = D*(1-sA) + B*sA
+
+This can be seen as there only being two regions, "destination only" and "both".
+
+====================================================
+
+Option "Clip to source": This is an option in SVG where you can limit drawing to the source shape. It is similar to the above in that it reduces it to the two regions "destination only" and "both", but the former must be the destination colour, and the later can still have alpha != 1. So the blend equation becomes this...
+
+result = dC*(1-sA) + S*sA*(1-dA)  + B*dA*sA
+==> dC*(1-sA) + (S*(1-dA)  + B*dA)*sA
+
+If we have both no destiation alpha and clip to source we get this...
+
+result = dC*(1-sA) + B*sA 
+
+so we have four permutations..
+
+"dest has alpha : clip to source"
+p1) yes : no ==> result = S*sA*(1-dA) + D*dA*(1-sA) +B*dA*sA 
+p2) yes : yes ==> result = dC*(1-sA) + (S*(1-dA)  + B*dA)*sA
+p3) no : no ==> result = D*(1-sA) + B*sA 
+p4) no : yes ==> result = dC*(1-sA) + B*sA  
+
+the first can be rewritten as : result = D*dA*(1-sA) + (S*(1-dA) + B*dA)*sA
+
+So all 4 permutations can be written in terms of
+
+result = X*(1-sA) + Y*sA
+
+in cases where X = dC, we can skip pixels where sA==0, this is clip to source, or a compositing op that effectively does the same thing.
+
+So we can differentiat ops on X and Y
+
