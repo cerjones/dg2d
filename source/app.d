@@ -118,19 +118,19 @@ class GFXPanel : Widget
     {
         super(0,0,800,800);
         gfx_font.setSize(22);
-        pathbtn = new Button(32,700,160,40,["block","borders","lines50","lines250","rects","text","text small"],gfx_font);
+        pathbtn = new Button(32,10,160,40,["block","borders","lines50","lines250","rects","text","text small"],gfx_font);
         pathbtn.setOnClick(&buttonClicked);
         addChild(pathbtn);
-        fillbtn = new Button(224,700,160,40,["solid","linear","radail","angular"],gfx_font);
+        fillbtn = new Button(224,10,160,40,["solid","linear","radail","angular"],gfx_font);
         fillbtn.setOnClick(&buttonClicked);
         addChild(fillbtn);
-        windbtn = new Button(416,700,160,40,["non zero","even odd"],gfx_font);
+        windbtn = new Button(416,10,160,40,["non zero","even odd"],gfx_font);
         windbtn.setOnClick(&buttonClicked);
         addChild(windbtn);
-        blendbtn = new Button(608,700,160,40,[" "],gfx_font);
+        blendbtn = new Button(608,10,160,40,[" "],gfx_font);
         blendbtn.setOnClick(&buttonClicked);
         addChild(blendbtn);
-        timlbl = new Label(300,750,200,30,"",gfx_font);
+        timlbl = new Label(300,60,200,30,"",gfx_font);
         addChild(timlbl);
         
         sel_path = &gfx_area;
