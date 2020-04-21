@@ -14,5 +14,9 @@
 			"buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"],
 			"dflags": ["-O3"]
 	  	}
+	},
+
+	"dependencies": {
+		"intel-intrinsics": "~>1.0"
 	}
 }

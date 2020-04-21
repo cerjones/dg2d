@@ -58,6 +58,7 @@ private:
 
     void linear_blit(WindingRule wr)(int* delta, DMWord* mask, int x0, int x1, int y)
     {
+        assert( ( cast(size_t)delta & 15 ) == 0 );
         assert(x0 >= 0);
         assert(x1 <= stride);
         assert(y >= 0);
@@ -84,7 +85,7 @@ private:
         // paint variables
 
         float t0 = (bpos*4-xctr)*xstep + (y-yctr)*ystep;
-        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep), [0.0,1.0,2.0,3.0]);
+        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep), _mm_setr_ps(0.0f,1.0f,2.0f,3.0f));
         xmT0 = _mm_add_ps(xmT0, _mm_set1_ps(t0));
         __m128 xmStep0 = _mm_set1_ps(xstep*4);
 

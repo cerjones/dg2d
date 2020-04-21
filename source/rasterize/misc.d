@@ -10,11 +10,25 @@ module misc;
 import core.stdc.stdlib : malloc, free, realloc;
 public import inteli;
 public import std.math : sqrt, abs;
-import ldc.intrinsics;
 
-alias intr_bsf = llvm_ctlz;
-alias intr_bsr = llvm_cttz;
-alias fabs = llvm_fabs;        // DMD fabs sucks
+version(LDC)
+{
+    import ldc.intrinsics;
+
+    alias intr_bsf = llvm_ctlz;
+    alias intr_bsr = llvm_cttz;
+    alias fabs = llvm_fabs;        // DMD fabs sucks
+}
+else version(DigitalMars)
+{
+    import core.bitop;
+
+    T intr_bsr(T)(T src, bool isZeroUndefined)
+    {
+        assert(isZeroUndefined);
+        return bsf(src); // Note: llvm_cttz corresponds to bsf in DMD not bsr
+    }
+}
 
 T min(T)(T a, T b)
 {
@@ -85,7 +99,7 @@ ubyte[] loadFileMalloc(string filename)
     if (file.size > size_t.max) return null;
     ubyte* p = cast(ubyte*) malloc(cast(size_t) file.size);
     if (p == null) return null;
-    ubyte[] tmp = file.rawRead(p[0..file.size]);
+    ubyte[] tmp = file.rawRead(p[0..cast(size_t)file.size]);
 
     if (tmp.length != file.size)
     {
@@ -504,7 +518,10 @@ private:
         newcap = roundUpPow2(newcap|15);
         if (newcap == 0) assert(0); // overflowed
         if (newcap > (size_t.max/T.sizeof)) assert(0); // too big
-        m_elements = cast(T*) realloc(m_elements, newcap*T.sizeof);
+        m_data = realloc(m_data, newcap*T.sizeof + 15);
+        size_t alignmentMask = (cast(size_t)-1) - 15;
+        size_t elements = (cast(size_t)m_data + 15) & alignmentMask;
+        m_elements = cast(T*) elements;
         if (!m_elements) assert(0); // allocate failed
         m_capacity = newcap;
     }
@@ -512,4 +529,5 @@ private:
     T* m_elements;
     size_t m_length;
     size_t m_capacity;
+    void* m_data; // unaligned data
 }

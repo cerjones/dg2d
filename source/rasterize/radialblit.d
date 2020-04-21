@@ -87,12 +87,12 @@ private:
         // paint variables
 
         float t0 = (bpos*4-xctr)*xstep0 + (y-yctr)*ystep0;
-        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep0), [0.0,1.0,2.0,3.0]);
+        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep0), _mm_setr_ps(0.0f,1.0f,2.0f,3.0f));
         xmT0 = _mm_add_ps(xmT0, _mm_set1_ps(t0));
         __m128 xmStep0 = _mm_set1_ps(xstep0*4);
 
         float t1 = (bpos*4-xctr)*xstep1 + (y-yctr)*ystep1;
-        __m128 xmT1 = _mm_mul_ps(_mm_set1_ps(xstep1), [0.0,1.0,2.0,3.0]);
+        __m128 xmT1 = _mm_mul_ps(_mm_set1_ps(xstep1), _mm_setr_ps(0.0f,1.0f,2.0f,3.0f));
         xmT1 = _mm_add_ps(xmT1, _mm_set1_ps(t1));
         __m128 xmStep1 = _mm_set1_ps(xstep1*4);
 
@@ -140,7 +140,7 @@ private:
 
                     while (ptr < end)
                     {
-                        __m128i rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                        __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
                         rad = _mm_sqrt_ps(rad);
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
@@ -171,7 +171,7 @@ private:
 
                     while (ptr < end)
                     {
-                        __m128i rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                        __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
                         rad = _mm_sqrt_ps(rad);
@@ -232,7 +232,7 @@ private:
 
             while (bpos < endbit)
             {
-                __m128i rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
                 rad = _mm_sqrt_ps(rad);
 
                 // Integrate delta values

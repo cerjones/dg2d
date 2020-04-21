@@ -87,12 +87,12 @@ private:
         // paint variables
 
         float t0 = (bpos*4-xctr)*xstep0 + (y-yctr)*ystep0;
-        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep0), [0.0,1.0,2.0,3.0]);
+        __m128 xmT0 = _mm_mul_ps(_mm_set1_ps(xstep0), _mm_setr_ps(0.0f,1.0f,2.0f,3.0f));
         xmT0 = _mm_add_ps(xmT0, _mm_set1_ps(t0));
         __m128 xmStep0 = _mm_set1_ps(xstep0*4);
 
         float t1 = (bpos*4-xctr)*xstep1 + (y-yctr)*ystep1;
-        __m128 xmT1 = _mm_mul_ps(_mm_set1_ps(xstep1), [0.0,1.0,2.0,3.0]);
+        __m128 xmT1 = _mm_mul_ps(_mm_set1_ps(xstep1), _mm_setr_ps(0.0f,1.0f,2.0f,3.0f));
         xmT1 = _mm_add_ps(xmT1, _mm_set1_ps(t1));
         __m128 xmStep1 = _mm_set1_ps(xstep1*4);
 
@@ -354,8 +354,8 @@ immutable __m128 MINSUM = [0.001,0.001,0.001,0.001];
 
 __m128 gradOfSorts(__m128 x, __m128 y)
 {
-    __m128 absx = _mm_and_ps(x, ABSMASK);
-    __m128 absy = _mm_and_ps(y, ABSMASK);
+    __m128 absx = _mm_and_ps(x, cast(__m128) ABSMASK);
+    __m128 absy = _mm_and_ps(y, cast(__m128) ABSMASK);
     __m128 sum = _mm_add_ps(absx,absy);
     __m128 diff = _mm_sub_ps(absx,absy);
     sum = _mm_max_ps(sum,MINSUM);
