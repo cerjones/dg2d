@@ -68,7 +68,7 @@ private:
         // paint variables
 
         __m128i xmColor = _mm_loadu_si32 (&color);
-        xmColor = _mm_unpacklo_epi8 (xmColor, 0);
+        xmColor = _mm_unpacklo_epi8 (xmColor, _mm_setzero_si128());
         xmColor = _mm_unpacklo_epi64 (xmColor, xmColor);
         __m128i xmAlpha = _mm_set1_epi16 (cast(ushort) ((color >> 24) << 8));
 

@@ -10,11 +10,25 @@ module misc;
 import core.stdc.stdlib : malloc, free, realloc;
 public import inteli;
 public import std.math : sqrt, abs;
-import ldc.intrinsics;
 
-alias intr_bsf = llvm_ctlz;
-alias intr_bsr = llvm_cttz;
-alias fabs = llvm_fabs;        // DMD fabs sucks
+version(LDC)
+{
+    import ldc.intrinsics;
+
+    alias intr_bsf = llvm_ctlz;
+    alias intr_bsr = llvm_cttz;
+    alias fabs = llvm_fabs;        // DMD fabs sucks
+}
+else version(DigitalMars)
+{
+    import core.bitop;
+
+    T intr_bsr(T)(T src, bool isZeroUndefined)
+    {
+        assert(isZeroUndefined);
+        return bsf(src); // Note: llvm_cttz corresponds to bsf in DMD not bsr
+    }
+}
 
 T min(T)(T a, T b)
 {
@@ -85,7 +99,7 @@ ubyte[] loadFileMalloc(string filename)
     if (file.size > size_t.max) return null;
     ubyte* p = cast(ubyte*) malloc(cast(size_t) file.size);
     if (p == null) return null;
-    ubyte[] tmp = file.rawRead(p[0..file.size]);
+    ubyte[] tmp = file.rawRead(p[0..cast(size_t)file.size]);
 
     if (tmp.length != file.size)
     {

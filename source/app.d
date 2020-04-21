@@ -200,7 +200,6 @@ long ProfileGFX(ref Path!float path)
 {
 		import core.sys.windows.windows;
 		import std.conv;
-		import ldc.intrinsics;
 
         Canvas canvas = new Canvas(800,800);
 
@@ -220,6 +219,27 @@ long ProfileGFX(ref Path!float path)
 		
     return time;
 }
+
+version(LDC)
+{
+    import ldc.intrinsics: readcyclecounter;
+}
+else version(DigitalMars)
+{
+    long readcyclecounter()
+    {
+        long result;
+        asm nothrow @nogc pure
+        {
+            rdtscp;
+            mov dword ptr [result+0], EAX;
+            mov dword ptr [result+4], EDX;
+        }
+        return result;
+    }
+}
+
+
 
 void ProfileAll()
 {
