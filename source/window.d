@@ -44,14 +44,14 @@ LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) nothrow
 {
     try
     {
-        auto window = cast(Window) (cast(void*) GetWindowLongPtr(hwnd, 0));
+        auto window = cast(Window) (cast(void*) GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
         if (window is null)
             return DefWindowProcA(hwnd, msg, wparam, lparam);
         else
-            return window.windowProc(msg, wparam, lparam);
+            return window.windowProc(hwnd, msg, wparam, lparam);
     }
-    catch (Throwable e)
+    catch (Exception e)
     {
         try { writeln(e.toString()); }
         catch(Exception what) {}
@@ -132,7 +132,7 @@ public:
 
         if (m_handle)
         {
-            SetWindowLong(m_handle, 0, cast(uint) (cast(void*) this));
+            SetWindowLongPtrA(m_handle, GWLP_USERDATA, cast(LONG_PTR)( cast(void*)this ));
             ShowWindow(m_handle, SW_SHOW);
 
             m_timer = SetTimer(m_handle, 0, 1000/20, NULL);
@@ -201,23 +201,23 @@ public:
 
     // Window proc handler
 
-    LRESULT windowProc(UINT msg, WPARAM _wparam, LPARAM _lparam)
+    LRESULT windowProc(HWND hwnd, UINT msg, WPARAM _wparam, LPARAM _lparam)
     {
-        uint wparam = cast(uint) _wparam;
-        uint lparam = cast(uint) _lparam;
+        WPARAM wparam = _wparam;
+        LPARAM lparam = _lparam;
 
         switch (msg)
         {
             case(WM_PAINT):              wm_Paint(); break;
             case(WM_CLOSE):              wm_Close(); break;
             case(WM_DESTROY):            wm_Destroy(); break;
-            case(WM_LBUTTONDOWN):        wm_Mouse(MouseEvent.LeftDown, lparam); break;
-            case(WM_LBUTTONDBLCLK):      wm_Mouse(MouseEvent.LeftDblCk, lparam); break;
-            case(WM_RBUTTONDOWN):        wm_Mouse(MouseEvent.RightDown, lparam); break;
-            case(WM_RBUTTONDBLCLK):      wm_Mouse(MouseEvent.RightDblCk, lparam); break;
+            case(WM_LBUTTONDOWN):        wm_Mouse(MouseEvent.LeftDown, cast(uint)lparam); break;
+            case(WM_LBUTTONDBLCLK):      wm_Mouse(MouseEvent.LeftDblCk, cast(uint)lparam); break;
+            case(WM_RBUTTONDOWN):        wm_Mouse(MouseEvent.RightDown, cast(uint)lparam); break;
+            case(WM_RBUTTONDBLCLK):      wm_Mouse(MouseEvent.RightDblCk, cast(uint)lparam); break;
             case(WM_TIMER):              wm_Timer(); break;
 
-            default: return DefWindowProc(m_handle, msg, wparam, lparam);
+            default: return DefWindowProc(hwnd, msg, wparam, lparam); // can't take m_handle there because of WM_CREATE
         }
         return 0;
     }
