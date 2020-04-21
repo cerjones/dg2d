@@ -58,6 +58,7 @@ private:
 
     void linear_blit(WindingRule wr)(int* delta, DMWord* mask, int x0, int x1, int y)
     {
+        assert( ( cast(size_t)delta & 15 ) == 0 );
         assert(x0 >= 0);
         assert(x1 <= stride);
         assert(y >= 0);

@@ -518,7 +518,10 @@ private:
         newcap = roundUpPow2(newcap|15);
         if (newcap == 0) assert(0); // overflowed
         if (newcap > (size_t.max/T.sizeof)) assert(0); // too big
-        m_elements = cast(T*) realloc(m_elements, newcap*T.sizeof);
+        m_data = realloc(m_data, newcap*T.sizeof + 15);
+        size_t alignmentMask = (cast(size_t)-1) - 15;
+        size_t elements = (cast(size_t)m_data + 15) & alignmentMask;
+        m_elements = cast(T*) elements;
         if (!m_elements) assert(0); // allocate failed
         m_capacity = newcap;
     }
@@ -526,4 +529,5 @@ private:
     T* m_elements;
     size_t m_length;
     size_t m_capacity;
+    void* m_data; // unaligned data
 }
