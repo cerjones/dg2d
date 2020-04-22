@@ -11,8 +11,8 @@
             "dflags": ["-mixin=\"mixins.txt\""]
 		},
 		"release": {
-			"buildOptions": ["releaseMode", "optimize", "inline", "noBoundsCheck"],
-			"dflags": ["-O3"]
+			"buildOptions": ["releaseMode", "optimize", "inline"],
+			"dflags": ["-O3","-flto=full"]
 	  	}
 	},
 

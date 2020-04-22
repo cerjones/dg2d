@@ -1,0 +1,5 @@
+.dub/
+.vscode/
+dub.selections.json
+*.exe
+mixins.txt
