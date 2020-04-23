@@ -5,7 +5,7 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module misc;
+module dg2d.misc;
 
 import core.stdc.stdlib : malloc, free, realloc;
 public import inteli;

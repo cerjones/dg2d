@@ -5,11 +5,11 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module radialblit;
+module dg2d.radialblit;
 
-import rasterizer;
-import gradient;
-import misc;
+import dg2d.rasterizer;
+import dg2d.gradient;
+import dg2d.misc;
 
 /*
   radial gradient blit

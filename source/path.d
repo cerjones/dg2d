@@ -5,10 +5,10 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module geometry.path;
+module dg2d.path;
 
-public import geometry.common;
-import misc;
+import dg2d.geometry;
+import dg2d.misc;
 
 /*
   PathCmd, used to tag each point on the path. The bottom three bits

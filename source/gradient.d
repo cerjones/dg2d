@@ -5,9 +5,9 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module gradient;
+module dg2d.gradient;
 
-import misc;
+import dg2d.misc;
 
 /*
   Gradient class, 

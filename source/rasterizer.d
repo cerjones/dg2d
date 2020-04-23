@@ -5,11 +5,12 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module rasterizer;
+module dg2d.rasterizer;
+
+import dg2d.misc;
+import dg2d.path;
 
 import std.traits;
-import misc;
-import geometry.path;
 
 /*
   Analitic antialiasing rasterizer.

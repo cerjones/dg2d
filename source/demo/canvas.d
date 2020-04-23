@@ -7,10 +7,12 @@
 
 module canvas;
 
-import misc;
-import geometry.path;
-import rasterizer;
-import gradient;
+import dg2d.misc;
+import dg2d.geometry;
+import dg2d.path;
+import dg2d.rasterizer;
+import dg2d.gradient;
+
 import font;
 
 import core.stdc.stdlib : malloc, free;
@@ -101,7 +103,7 @@ class Canvas
 
     void fill(ref Path!float path, uint color, WindingRule wr)
     {
-        import colorblit;
+        import dg2d.colorblit;
 
         if (!isClipValid) return;
 
@@ -116,7 +118,7 @@ class Canvas
     void fillLinear(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
         float x1, float y1)
     {
-        import linearblit;
+        import dg2d.linearblit;
 
         if (!isClipValid) return;
 
@@ -136,7 +138,7 @@ class Canvas
     void fillRadial(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
         float x1, float y1,float r)
     {
-        import radialblit;
+        import dg2d.radialblit;
 
         if (!isClipValid) return;
 
@@ -157,7 +159,7 @@ class Canvas
     void fillAngular(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
         float x1, float y1, float r2)
     {
-        import angularblit;
+        import dg2d.angularblit;
 
         if (!isClipValid) return;
 
@@ -176,7 +178,7 @@ class Canvas
 
     void roundRect(float x, float y, float w, float h, float r, uint color)
     {
-        import colorblit;
+        import dg2d.colorblit;
 
         if (!isClipValid) return;
 

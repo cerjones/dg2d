@@ -5,10 +5,10 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module blend;
+module dg2d.blend;
 
-import rasterizer;
-import misc;
+import dg2d.rasterizer;
+import dg2d.misc;
 
 /*
     How to to seperate blend modes from blitting? some way to mixin blend code

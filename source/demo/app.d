@@ -10,11 +10,12 @@ module app;
 import std.stdio;
 import window;
 import canvas;
-import geometry.path;
 import font;
-import gradient;
-import misc;
-import rasterizer;
+
+import dg2d.path;
+import dg2d.gradient;
+import dg2d.misc;
+import dg2d.rasterizer;
 
 void main()
 {

@@ -5,10 +5,10 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module colorblit;
+module dg2d.colorblit;
 
-import rasterizer;
-import misc;
+import dg2d.rasterizer;
+import dg2d.misc;
 
 /*
   ColorBlit

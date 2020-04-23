@@ -5,10 +5,11 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module truetype;
+module dg2d.truetype;
+
+import dg2d.path;
 
 import core.stdc.stdlib : malloc, free, realloc;
-import geometry.path;
 
 /*
   TrueType font loader.

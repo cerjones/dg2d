@@ -5,9 +5,9 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module geometry.common;
+module dg2d.geometry;
 
-import misc;
+import dg2d.misc;
 
 struct Point(T)
 {

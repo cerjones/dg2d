@@ -7,18 +7,17 @@
 
 module font;
 
-import misc;
-import truetype;
-import geometry.path;
+import dg2d.misc;
+import dg2d.truetype;
+import dg2d.path;
 
 /*
   This is very much "just get it working so I can print something on screen",
 */
 
-
 Font loadFont(string filename)
 {
-    import misc;
+    import dg2d.misc;
 
     ubyte[] tmp = loadFileMalloc(filename);
     if (tmp.ptr == null) return null;

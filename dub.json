@@ -3,7 +3,8 @@
 	"authors": ["Chris"],
 	"description": "a",
 	"copyright": "Copyright © 2018, Chris",
-	"license": "shrug",
+    "license": "shrug",
+    "targetType": "executable",
 
 	"buildTypes": {
 		"debug": {
