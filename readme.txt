@@ -3,7 +3,7 @@ DG2D - 2D vector graphics rendering library for the D programming language.
 Features:
 
 Fills abitrary paths, with lines, quads and cubics.
-Solid fill, line gradient, radial gradient and angular gradient.
+Solid fill, linear gradient, radial gradient and angular gradient.
 Very basic font rendering. (Just pulls glyphs from a truetype file atm)
 Some geometry, points, rects, paths.
 Very fast, high performance rasterizer with SIMD support.
