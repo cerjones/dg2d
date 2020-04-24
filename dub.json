@@ -3,7 +3,7 @@
 	"authors": ["Chris"],
 	"description": "a",
 	"copyright": "Copyright © 2018, Chris",
-    "license": "shrug",
+    "license": "Boost 1.0",
     "targetType": "executable",
 
 	"buildTypes": {

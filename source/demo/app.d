@@ -19,6 +19,11 @@ import dg2d.rasterizer;
 
 void main()
 {
+    string foo =
+    "msamdamsdlamdlakmdkamda"~
+    "ssmflsmdfksmflksmflsmfs";
+
+
 	ProfileAll();
 
     GFXPanel panel = new GFXPanel();
@@ -33,6 +38,7 @@ class GFXPanel : Widget
 	override void onPaint(Canvas canvas)
   	{
         canvas.fill(0xFF000000);
+        canvas.setClip(clipoffset,clipoffset,tmpcvs.width-clipoffset,tmpcvs.height-clipoffset);
 
         switch(fillidx % 4)
         {
@@ -77,6 +83,12 @@ class GFXPanel : Widget
 
         bestfps = 0;
 
+        repaint();
+    }
+
+    void shrinkClip()
+    {
+        clipoffset++;
         repaint();
     }
 
@@ -128,8 +140,8 @@ class GFXPanel : Widget
         windbtn = new Button(416,10,160,40,["non zero","even odd"],gfx_font);
         windbtn.setOnClick(&buttonClicked);
         addChild(windbtn);
-        blendbtn = new Button(608,10,160,40,[" "],gfx_font);
-        blendbtn.setOnClick(&buttonClicked);
+        blendbtn = new Button(608,10,160,40,["shrink clip"],gfx_font);
+        blendbtn.setOnClick(&shrinkClip);
         addChild(blendbtn);
         timlbl = new Label(300,60,200,30,"",gfx_font);
         addChild(timlbl);
@@ -153,6 +165,8 @@ class GFXPanel : Widget
     float bestfps = 0;
 
     Canvas tmpcvs;
+
+    int clipoffset;
 }
 
 /*

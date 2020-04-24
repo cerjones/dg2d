@@ -3,3 +3,5 @@
 dub.selections.json
 *.exe
 mixins.txt
+todo.txt
+oldsource/

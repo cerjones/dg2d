@@ -16,7 +16,7 @@ import dg2d.misc;
   whether the segment is "linked". IE does it share a point with the
   previous command. So a line requires 2 points, but because it is
   "linked" it uses the last point of the previous as it's first.
-  Ecoding this info in the enum simpifies with iterating along the path.
+  Ecoding this info in the enum helps with iterating along the path.
 */
 
 enum PathCmd : ubyte
@@ -176,7 +176,7 @@ struct Path(T)
         m_length = 0;
     }
 
-    void translate(T x, T y)
+    void offset(T x, T y)
     {
         foreach(ref p; m_points[0..m_length])
         {
@@ -299,6 +299,7 @@ private:
 */
 
 struct OffsetPathIterator(T)
+    if (is(T == float) || is(T == double))
 {
     this(ref Path!T path, T x, T y)
     {
