@@ -20,7 +20,7 @@ import std.math : pow;
   returns remaing text 
 */
 
-char[] readPathData(T)(char[] txt, ref T path)
+string readPathData(T)(string txt, ref T path)
 {
     Scanner s;
     s.init(txt);
@@ -149,15 +149,15 @@ char[] readPathData(T)(char[] txt, ref T path)
 
 struct Scanner
 {
-    char* ptr,end;
+    immutable(char)* ptr,end;
 
-    void init(char[] text)
+    void init(string text)
     {
         ptr = text.ptr;
         end = ptr+text.length;
     }
 
-    char[] text()
+    string text()
     {
         return ptr[0..end-ptr];
     }

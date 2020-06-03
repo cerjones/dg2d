@@ -30,6 +30,20 @@ Font loadFont(string filename)
     return font;
 }
 
+// cast away const on font data for now till I can fix truetype stuff to work with const
+
+Font loadFont(const(ubyte)[] rawfont)
+{
+    import dg2d.misc;
+
+    ttFontInfo finfo;
+    if (ttLoadFont(finfo, cast(ubyte[]) rawfont) == ttFail) return null;
+    Font font = new Font();
+    font.m_data = cast(ubyte[]) rawfont;
+    font.m_fontinfo = finfo;
+    return font;
+}
+
 class Font
 {
     this()

@@ -19,10 +19,10 @@ import dg2d.rasterizer;
 
 void main()
 {
-	ProfileAll();
+//	ProfileAll();
 
-    //GFXPanel panel = new GFXPanel();
-    TestPanel panel = new TestPanel();
+    GFXPanel panel = new GFXPanel();
+    //TestPanel panel = new TestPanel();
     Window wnd = new Window();
     wnd.addClient(panel);
     wnd.createWindow(200,200,800,800,"graphics test");
@@ -205,18 +205,17 @@ Font        gfx_font;
 
 static this()
 {
-    import std.file;
-    import std.path;
-    auto path = thisExePath();
-    auto root = dirName(path);
+    import rawgfx;
 
+    Path!float path;
     gfx_area.moveTo(50,50).lineTo(750,50).lineTo(750,750).lineTo(50,750).lineTo(50,50);
-	gfx_borders = loadSvgPath(root~"\\source\\gfx\\borders.txt",1);
+
+	gfx_borders = loadSvgPath(rawborders,1);
 	gfx_lines50 = randomPath(50,1);
 	gfx_lines250 = randomPath(250,20);
-	gfx_rects = loadSvgPath(root~"\\source\\gfx\\roundrects.txt",1);
+	gfx_rects = loadSvgPath(rawrects,1);
 
-    gfx_font = loadFont(root~"\\source\\gfx\\OpenSansRegular.ttf");
+    gfx_font = loadFont(rawfont);
 
     gfx_font.setSize(40);
     gfx_text_l = buildTextPath(gfx_font,loremIpsum);
@@ -286,7 +285,7 @@ void ProfileAll()
 }
 
 // load an svg path string/
-
+/*
 Path!float loadSvgPath(string filename, float scale)
 {
 	import readpath;
@@ -301,6 +300,21 @@ Path!float loadSvgPath(string filename, float scale)
     txt = readPathData(txt,path);
 
     path.scale(scale,scale);
+
+	return path;
+}
+*/
+Path!float loadSvgPath(string txt, float scale)
+{
+	import readpath;
+    import std.stdio;
+
+	Path!float path;
+    readPathData(txt,path);
+
+    path.scale(scale,scale);
+
+//    path = path.scale(scale,scale);
 
 	return path;
 }
@@ -460,5 +474,3 @@ Path!float buildTextPath(Font font, const char[] txt)
     }
     return path;
 }
-
-string loremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras vestibulum velit vel magna efficitur rhoncus. Etiam interdum orci id lacus dapibus varius. Vivamus condimentum est quam, nec interdum purus tincidunt sit amet. Duis vel neque mi. Aliquam arcu nibh, ultrices nec tellus et, consequat pulvinar sem. Vestibulum a tincidunt quam. Nulla congue massa a ultricies pretium. Morbi feugiat lacinia turpis. Donec ullamcorper dui nibh, in accumsan eros ultricies ut.\n\n   Nunc tincidunt eros consectetur magna venenatis feugiat. Mauris vitae efficitur odio. Phasellus vitae hendrerit tortor. Suspendisse egestas molestie dui vel convallis. Quisque venenatis cursus neque ac venenatis. Sed finibus urna scelerisque, gravida nisl sit amet, condimentum lorem. Nam tincidunt nulla lorem, tempus lobortis risus dapibus in. Fusce luctus at mauris et dictum. In pellentesque turpis ex, sit amet porta sem venenatis laoreet. Praesent tempor risus mauris, id sagittis velit bibendum vitae. Ut nulla tellus, facilisis condimentum laoreet sed, congue sit amet ipsum. Sed eleifend pretium volutpat. Nullam laoreet, orci sed semper elementum, erat turpis efficitur leo, sit amet eleifend diam nisl nec justo.\n\n   Praesent tempor odio lectus, vitae aliquam leo pellentesque in. Cras nec tellus a lorem molestie pretium eget pretium justo. Nullam elementum lorem in lorem pretium posuere. Phasellus a purus vitae nulla gravida imperdiet vel sed libero. Nunc ornare viverra odio, in placerat diam sollicitudin a. Quisque rutrum fringilla libero non convallis. Aliquam vel tempor mi, et sodales erat. Duis sed mauris turpis. Mauris porta nibh quis pretium cursus. Proin nec eros finibus, mollis velit id, tristique est. Nam dignissim porta condimentum.\n\n   Aliquam diam orci, maximus at quam ac, eleifend sodales risus. Morbi volutpat venenatis mauris quis pellentesque. Maecenas malesuada ac sapien lobortis viverra. Praesent lobortis bibendum convallis. Donec tortor nulla, cursus eu rhoncus ut, aliquam nec odio. Duis sed massa vitae augue blandit ullamcorper. Nullam quis purus nunc. In fringilla ornare ante mattis pretium. Phasellus vitae leo nisl. Pellentesque commodo dui id diam vehicula suscipit. Nam vitae risus ut est egestas luctus ut quis erat.\n\n   Suspendisse ultrices mauris vel tellus mattis, eu vehicula arcu pulvinar. Curabitur maximus scelerisque porta. Quisque tristique lobortis gravida. Nulla vulputate malesuada tincidunt. Donec tempus faucibus eros. Mauris est ipsum, luctus eget ex id, pharetra commodo felis. Morbi ac malesuada enim. Fusce enim nunc, dictum nec egestas eu, interdum quis dui. Mauris in tortor enim.";
