@@ -107,6 +107,15 @@ void DMSetBit(DMWord* mask, uint x)
     mask[x/dmPixPerWord] |= (cast(DMWord)1) << ((x / dmPixPerBit) & dmWordMask);  
 }
 
+void DMSetBitRange(DMWord* mask, uint x0, int x1)
+{
+    while (x0 <= x1)
+    {
+        mask[x0/dmPixPerWord] |= (cast(DMWord)1) << ((x0 / dmPixPerBit) & dmWordMask);
+        x0+=4;
+    }
+}
+
 /*
   Few constants for fixed point coordinates / gradients
 */
@@ -306,7 +315,8 @@ class Rasterizer
                 }
                 else if (steps > 0)
                 {
-                    DMSetBit(m_deltamask.ptr, x0);
+                    //DMSetBit(m_deltamask.ptr, x0);
+                    DMSetBitRange(m_deltamask.ptr, x0, x1);
 
                     int w = 256 - ((edge.x >> 32) & 0xFF);
                     long acc = w * edge.dy;
@@ -334,7 +344,8 @@ class Rasterizer
                 }
                 else if (steps < 0)
                 {
-                    DMSetBit(m_deltamask.ptr, x1);
+                    //DMSetBit(m_deltamask.ptr, x1);
+                    DMSetBitRange(m_deltamask.ptr, x1, x0);
 
                     int w = 256 - ((nx >> 32) & 0xFF);
                     long acc = w * edge.dy;
@@ -376,7 +387,16 @@ class Rasterizer
             
             version(assert)
             {
-                foreach(e; m_scandelta) assert(e == 0);
+                foreach(e; m_scandelta) if (e != 0)
+                {
+                    import std.stdio;
+                    write(y, ' ',"scan delta error = ");
+                    foreach(q; m_scandelta)
+                    {
+                        write(q,":");
+                    }
+                    assert(0);
+                }
 			}
         }
 
@@ -596,7 +616,8 @@ private:
                 "int xxx = max(abs("~x1~"-"~x0~"),1);" ~
                 "edge.dy = cast(long) (fpDYScale * ("~tmp~") /  xxx);" ~
                 "edge.next = m_buckets[by];" ~
-                "m_buckets[by] = edge;";
+                "m_buckets[by] = edge;";// ~
+                //debugEdgeCoords(x0,y0,x1,y1,dir);
         }
 
         // mixin for clip accumulator
@@ -813,6 +834,8 @@ private:
 
         m_prevx = x;
         m_prevy = y;
+
+//        debugClipBuffer("L");
     }
 
     // edge struct
@@ -855,4 +878,47 @@ private:
 
     float m_fprevx,m_fprevy;
 
+    // writeln various info for debug purposes
+
+    void debugEdgeCount()
+    {
+        import std.stdio;
+        int edgecount;
+        foreach(e; m_buckets)
+            while (e)
+            {
+                e = e.next;
+                edgecount++;
+            }
+
+        writeln("edgecount:", edgecount);
+    }
+
+    void debugClipBuffer(string l_or_r)
+    {
+        import std.stdio;
+        if (l_or_r == "L")
+        {
+            write("left clip = ");
+            foreach(e; m_clipbfr_l)
+            {
+                write(e,":");
+            }
+        }
+        else
+        {
+            write("right clip = ");
+            foreach(e; m_clipbfr_r)
+            {
+                import std.stdio; write(e,":");
+            }
+        }
+    }
+
+    static string debugEdgeCoords(string x0, string y0, string x1, string y1, string dir)
+    {
+        return 
+            "import std.stdio;" ~
+            "writeln("~x0~",' ',"~y0~",' ',"~x1~",' ',"~y1~",' ',\""~dir~"\");";
+    }
 }

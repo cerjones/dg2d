@@ -19,18 +19,36 @@ import dg2d.rasterizer;
 
 void main()
 {
-    string foo =
-    "msamdamsdlamdlakmdkamda"~
-    "ssmflsmdfksmflksmflsmfs";
-
-
 	ProfileAll();
 
-    GFXPanel panel = new GFXPanel();
+    //GFXPanel panel = new GFXPanel();
+    TestPanel panel = new TestPanel();
     Window wnd = new Window();
     wnd.addClient(panel);
     wnd.createWindow(200,200,800,800,"graphics test");
 	WindowsMessageLoop();
+}
+
+class TestPanel : Widget
+{
+    Path!float path;
+
+    this()
+    {
+        super(200,200,800,800);
+        path.moveTo(-4.48518,1.69193).lineTo( 9.89451,0.150122).lineTo(-1.97198,1.42315).close();
+        path.moveTo(49.276596,11.177839).lineTo(12.747784,8.287876).lineTo(50.662491,11.286461).close();
+        path.moveTo(-4.820584,34.291153).lineTo(-2.890672,34.366234).lineTo(50.161381,36.457401).close();
+        path.moveTo(50.861496,20.968971).lineTo(-6.823852,26.630871).lineTo(46.685181,21.377645).close();
+        path.moveTo(46.575394,54.352577).lineTo(18.876856,48.298264).lineTo(-5.532673,42.964012).close();
+        path.moveTo(53.697834,37.919582).lineTo(16.089132,46.436161).lineTo(55.921280,37.421677).close();
+    }
+
+	override void onPaint(Canvas canvas)
+  	{
+        canvas.fill(0xFF000000);
+        canvas.fill(path,0xFFFFFFFF,WindingRule.EvenOdd);
+    }
 }
 
 class GFXPanel : Widget

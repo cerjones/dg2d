@@ -2,6 +2,7 @@
 .vscode/
 dub.selections.json
 *.exe
+*.lib
 mixins.txt
 todo.txt
 oldsource/
