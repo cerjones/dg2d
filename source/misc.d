@@ -47,6 +47,13 @@ T clip(T)(T x, T min, T max)
     return x;
 }
 
+void swap(T)(ref T a, ref T b)
+{
+    T tmp = a;
+    a = b;
+    b = tmp;
+}
+
 // round x up to next multiple of q
 
 uint roundUpTo(uint x, uint q)
@@ -86,6 +93,10 @@ bool isPow2(int x)
 {
     return ! ((x - 1) & x);
 }
+
+// is float or double,
+
+enum bool isFloatOrDouble(T) = (is(T == float) || is(T == double));
 
 // load file into malloced memory
 
@@ -288,122 +299,6 @@ public:
 }
 
 /*
-  array allocation via stdc heap, obviously dont call this with an array
-  that is not either a null array or pointing at a block of memory on
-  the stdc heap.
-*/
-
-void reallocArray(T)(ref T array, size_t newlen, bool voidInit = false)
-{
-    import core.stdc.stdlib : realloc;
-    import std.algorithm.mutation : initializeAll;
-
-    if (newlen < array.length)
-    {
-        array = array.ptr[0..newlen];
-    }
-    else
-    {
-        alias eType = typeof(array[0]);
-        if (newlen >= (size_t.max / eType.sizeof)) assert(0); // too much
-        void* tmp = realloc(array.ptr, eType.sizeof*newlen);
-        if (tmp == null) assert(0); // no mem... abandon ship!
-        size_t oldlen = array.length;
-        array = (cast(eType*) tmp)[0..newlen];
-        if (!voidInit) initializeAll(array[oldlen..newlen]);
-    }
-}
-
-/*
-  Enables malloc based arrays that track their own capacity. Uses a 16 byte
-  header to store capcacity, bit wasteful but small cost relative cost as
-  arrays will be pretty big probably. (We needs to retain 16 byte align for
-  array). Obviously pass in arrays that havent been exclusively managed by
-  this function.
-*/
-/*
-void reallocArray2(T, bool voidInit = false)(ref T array, size_t newlen)
-{
-    import core.stdc.stdlib : malloc, free, realloc;
-    import std.algorithm.mutation : initializeAll;
-    alias eType = typeof(array[0]);
-
-    struct Header
-    {
-        align(16) size_t capacity; // so sizeof == 16
-    }
-
-    if (newlen > 0)
-    {
-        Header* block = null;
-        size_t oldlen = array.length;
-
-        if (array.ptr)
-        {
-            block = (cast(Header*)array.ptr)-1;
-
-            if (newlen < block.capacity)
-            {
-                static if (!voidInit) if (newlen > oldlen)
-                    initializeAll(array.ptr[oldlen..newlen]);
-
-                array = array.ptr[0..newlen];
-                return;
-            }
-        }
-
-        size_t newcap = roundUpPow2(newlen|31);
-        if (newcap == 0) assert(0); // overflowed
-        if (newcap > ((size_t.max-16)/eType.sizeof)) assert(0); // too big
-        block = cast(Header*) realloc(block, newcap*eType.sizeof+16);
-        if (!block) assert(0); // allocate failed
-        array = (cast(eType*)(block+1))[0..newlen];
-        block.capacity = newcap;
-
-        static if (!voidInit) if (newlen > oldlen)
-            initializeAll(array.ptr[oldlen..newlen]);
-    }
-}
-
-void freeArray(T)(ref T array)
-{
-    if (array.ptr)
-    {
-        free((cast(ubyte*)array.ptr)-16);
-    }
-}
-*/
-
-T* realloc2(T)(T* ptr, size_t newcap)
-{
-    assert(newcap != 0);
-    newcap = roundUpPow2(newcap|7);
-    if (newcap == 0) assert(0); // overflowed
-    if (newcap > (size_t.max/T.sizeof)) assert(0); // too big
-    ptr = cast(T*) realloc(ptr, newcap*T.sizeof);
-    if (!ptr) assert(0); // allocate failed
-    return ptr;
-}
-
-size_t calccap(T)(size_t capacity)
-{
-    assert(capacity != 0);
-    capacity = roundUpPow2(capacity);
-    if (capacity == 0) assert(0); // overflowed
-    if (reqcap > (size_t.max/T.sizeof)) assert(0); // too big
-    return ptr;
-}
-
-T* realloc2(T)(T* ptr, size_t newcap)
-{
-    actCap = calccap(newcap);
-    ptr = cast(T*) realloc(ptr, actCap*T.sizeof);
-    if (!ptr) assert(0); // allocate failed
-    return ptr;
-}
-
-
-/*
    Simple array which uses the C heap
    Keeps track of capacity to minimize reallocations
    Frees the memory when it is destroyed
@@ -531,3 +426,16 @@ private:
     size_t m_capacity;
     void* m_data; // unaligned data
 }
+
+
+/*
+  (Re)allocate memory from c std heap
+*/
+
+T* dg2dRealloc(T)(T* ptr, size_t length)
+{
+    import core.stdc.stdlib : realloc;
+    ptr = cast(T*) realloc(ptr, length * T.sizeof);
+    if (ptr == null) assert(0); 
+}
+

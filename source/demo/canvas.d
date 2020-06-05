@@ -108,7 +108,7 @@ class Canvas
         if (!isClipValid) return;
 
         m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath(OffsetPathIterator!float(path,m_view.x0,m_view.y0));
+        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
 
         ColorBlit cb;
         cb.init(m_pixels,m_stride,m_height,color);
@@ -128,7 +128,7 @@ class Canvas
         y1 += m_view.y0;
 
         m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath(OffsetPathIterator!float(path,m_view.x0,m_view.y0));
+        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
 
         LinearBlit lb;
         lb.init(m_pixels, m_stride, m_height, grad, x0, y0, x1, y1);
@@ -148,7 +148,7 @@ class Canvas
         y1 += m_view.y0;
 
         m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath(OffsetPathIterator!float(path,m_view.x0,m_view.y0));
+        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
 
         RadialBlit rb;
         rb.init(m_pixels,m_stride,m_height,&grad,x0,y0,x1,y1,r);
@@ -169,7 +169,7 @@ class Canvas
         y1 += m_view.y0;
 
         m_rasterizer.initialise(m_clip.x0, m_clip.y0, m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath(OffsetPathIterator!float(path,m_view.x0,m_view.y0));
+        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
 
         AngularBlit ab;
         ab.init(m_pixels,m_stride,m_height,grad,x0,y0,x1,y1,r2);
@@ -208,7 +208,7 @@ class Canvas
     {
         if (!isClipValid) return;
 
-        m_tmppath.reset();
+        m_tmppath.clear();
 
        // x += m_view.x0;
       //  y += m_view.y0;

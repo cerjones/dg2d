@@ -331,7 +331,7 @@ void dumpPath(ref Path!float path, string filename)
 
     foreach(i; 0..path.length)
     {
-        if (path.getCmd(i) == PathCmd.move)
+        if (path.cmd(i) == PathCmd.move)
         {
             file.rawWrite("M ");
             file.rawWrite(to!string(path[i].x));
@@ -339,7 +339,7 @@ void dumpPath(ref Path!float path, string filename)
             file.rawWrite(to!string(path[i].y));
             file.rawWrite(" ");
         }
-        if (path.getCmd(i) == PathCmd.line)
+        if (path.cmd(i) == PathCmd.line)
         {
             file.rawWrite("L ");
             file.rawWrite(to!string(path[i].x));
@@ -347,7 +347,7 @@ void dumpPath(ref Path!float path, string filename)
             file.rawWrite(to!string(path[i].y));
             file.rawWrite(" ");
         }
-        if (path.getCmd(i+1) == PathCmd.quad)
+        if (path.cmd(i+1) == PathCmd.quad)
         {
             file.rawWrite("Q ");
             file.rawWrite(to!string(path[i].x));
@@ -360,7 +360,7 @@ void dumpPath(ref Path!float path, string filename)
             file.rawWrite(" ");
             i++;
         }
-        if (path.getCmd(i+1) == PathCmd.cubic)
+        if (path.cmd(i+1) == PathCmd.cubic)
         {
             file.rawWrite("C ");
             file.rawWrite(to!string(path[i].x));

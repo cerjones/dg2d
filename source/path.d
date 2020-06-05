@@ -1,81 +1,66 @@
-/*
-  Copyright Chris Jones 2020.
-  Distributed under the Boost Software License, Version 1.0.
-  See accompanying file Licence.txt or copy at...
-  https://www.boost.org/LICENSE_1_0.txt
+/**
+  This module provides a 2D geometric Path type and some adaptor functions
+  that can be used to transform it.
+
+  Copyright: Chris Jones
+  License: Boost Software License, Version 1.0
+  Authors: Chris Jones
 */
 
 module dg2d.path;
 
 import dg2d.geometry;
 import dg2d.misc;
+import std.traits;
 
-/*
-  PathCmd, used to tag each point on the path. The bottom three bits
-  encode the number points for the command type. The topmost bit encodes
-  whether the segment is "linked". IE does it share a point with the
-  previous command. So a line requires 2 points, but because it is
-  "linked" it uses the last point of the previous as it's first.
-  Ecoding this info in the enum helps with iterating along the path.
+/**
+  This enum defines the commands that can be used to build a path.
 */
 
 enum PathCmd : ubyte
 {
-    empty = 0,        // no path data or error
-    move  = 1 | 0,    // start a new sub path
-    line  = 2 | 128,  // line 
-    quad  = 3 | 128,  // quadratic curve
-    cubic = 4 | 128,  // cubic bezier
+    empty = 0,        /// empty path or error
+    move  = 1,        /// start a new (sub) path
+    line  = 2 | 128,  /// line 
+    quad  = 3 | 128,  /// quadratic curve
+    cubic = 4 | 128,  /// cubic bezier
 }
 
-int advance(PathCmd cmd) { return cmd & 7; }
-int linked(PathCmd cmd) { return cmd >> 7; }
-
 /*
-  Path class, a 2d geometric path composed of lines and curves. Each point of
-  a segment is tagged with the type of the segment. However as the end point
-  of one segment is also the start point of the following segment it's
-  technically part of both. I've chosen to tag the end points as belonging
-  to the previous segment. So an initial move folowed by a line followed by
-  a quadratic would be...
+  The number of points and whether a command is linked or not is encoded in
+  the enum value. This helps when iterating the path.
+*/
 
-  move,line,quad,quad
+private int advance(PathCmd cmd) { return cmd & 7; }
 
-  we could use a bitmask and tag shared end/start points with both, but im
-  not sure if it would be of any use.
+private int linked(PathCmd cmd) { return cmd >> 7; }
 
-  A path must always start with a move. A path can be composed of multiple
-  subpaths and you start a new subpath by inserting a move. There is no
-  requirement for the subpaths to be closed. (End joined back to start)
-  I thought about either requiring it or doing it automatically but there
-  are two arguments against...
-  
-  1. If closed paths are a requirement for some reason, i think the check
-  should be done by the code that requires it rather than adding the
-  overhead for every user of the Path class.
-  
-  2. Unclosed paths are need for stroking.
-
-  There needs to be a close command, as thats's also important for stroking
-  to know whether segment closes or not. If it's closed back to the start of
-  the path it changes from two end caps that happen to be in the same place
-  to a join.
-
-  I envisage Path as a kind of basic container of path data. And there can
-  be iterators or adaptors that mutate it on the fly. Free functions to
-  envaluate properties etc. 
-
+/**
+  A 2D geometric path type. The path is built from a sequence of path
+  commands where each command consists of 1 or more points. Each point
+  along the path is tagged with the type of command it belongs to. All
+  commands except for move implicitly link together. In linked commands
+  the last point of the previous command is used as the first point of
+  the following command. This shared point is always tagged for the
+  previous command.
+  A path must always start with an initial move.
 */
 
 struct Path(T)
-    if (is(T == float) || is(T == double))
+    if (isFloatOrDouble!(T))
 {
+    @disable this(this);
+
+    /** Frees the memory used by the path. */
+
     ~this()
     {
         import core.stdc.stdlib : free;
         free(m_points);
         free(m_cmds);
     }
+
+    /** Move to x,y */
 
     ref Path!T moveTo(T x, T y)
     {
@@ -88,6 +73,8 @@ struct Path(T)
         return this;
     }
 
+    /** Add a line */
+
     ref Path!T lineTo(T x, T y)
     {
         assert(m_lastMove >= 0);
@@ -99,7 +86,8 @@ struct Path(T)
         return this;
     }
 
-    // close subpath, draws a line back to the previous move 
+    /** Close the current subpath. This draws a line back to the
+    last move command. */ 
 
     ref Path!T close()
     {
@@ -111,6 +99,8 @@ struct Path(T)
         m_length++;
         return this;
     }
+
+    /** Add a quadratic curve */
 
     ref Path!T quadTo(float x1, float y1, float x2, float y2)
     {
@@ -125,6 +115,8 @@ struct Path(T)
         m_length += 2;
         return this;
     }
+
+    /** Add a cubic curve */
 
     ref Path!T cubicTo(float x1, float y1, float x2, float y2, float x3, float y3)
     {
@@ -143,72 +135,104 @@ struct Path(T)
         return this;
     }
 
-    // returns the last moveTo coordinates
+    /** Get the coordinates of last move */
 
-    Point!T startOfSubPath()
+    Point!T lastMoveTo()
     {
         assert(m_lastMove >= 0);
         return m_points[m_lastMove];
     }
+
+    /** array operator access to points */
+
+    ref Point!T opIndex(size_t idx)
+    {
+        return m_points[idx];
+    }
+
+    /** get a slice of the path points */
+    
+    PathView!(Path!T) opSlice(size_t from, size_t to)
+    {
+        return PathView!(Path!T)(&this, from, to);
+    }
+
+    /** Copy rhs to this path */
+
+    void opAssign(P)(auto ref P rhs)
+        if (isPathType!(P))
+    {
+        if (m_length == rhs.length)
+        {
+            foreach(size_t i; 0..rhs.length)
+            {
+                m_points[i] = rhs.point(i);
+                m_cmds[i] = rhs.cmd(i);
+            }
+        }
+    }
+
+    /** clear the path */
+
+    void clear()
+    {
+        m_length = 0;
+    }
+
+    /**  append to the path */
+
+    void append(P)(auto ref P rhs)
+        if (isPathType!(P))
+    {
+        if (rhs.length == 0) return;
+        makeRoomFor(rhs.length);
+
+        foreach(size_t i; 0..rhs.length)
+        {
+            m_points[m_length+i] = rhs.point(i);
+            m_cmds[m_length+i] = rhs.cmd(i);
+        }
+        m_length += rhs.length;
+    }
+
+    /** The number of points in the path */
 
     size_t length()
     {
         return m_length;
     }
 
-    ref Point!T opIndex(size_t idx)
+    /** x,y,cmd, and points */
+
+    T x(size_t idx)
     {
-        return m_points[idx];
+        assert(idx < m_length);
+        return m_points[idx].x;
     }
-    
-    auto opSlice(size_t from, size_t to)
+
+    T y(size_t idx)
     {
-        return m_points[from..to];
+        assert(idx < m_length);
+        return m_points[idx].y;
     }
-    
-    PathCmd getCmd(size_t idx)
+
+    PathCmd cmd(size_t idx)
     {
+        assert(idx < m_length);
         return m_cmds[idx];
     }
 
-    void reset()
+    Point!T point(size_t idx)
     {
-        m_length = 0;
+        assert(idx < m_length);
+        return m_points[idx];
     }
 
-    void offset(T x, T y)
-    {
-        foreach(ref p; m_points[0..m_length])
-        {
-            p.x += x;
-            p.y += y;
-        }
-    }
-
-    void scale(T xs, T ys)
-    {
-        foreach(ref p;m_points[0..m_length])
-        {
-            p.x *= xs;
-            p.y *= ys;
-        }
-    }
-    
-    void append(ref Path!T other)
-    {
-        if (other.length == 0) return;
-        makeRoomFor(other.m_length);
-        size_t end = m_length + other.length;
-        m_points[m_length..end] = other.m_points[0..other.m_length];
-        m_cmds[m_length..end] = other.m_cmds[0..other.m_length];
-        m_length = end;
-    }
-    
 private:
 
     alias PointType = Point!T;
 
-    // make sure enough room for "num" extra coords
+    // make sure theres enough room for "num" extra coords
 
     void makeRoomFor(size_t num)
     {
@@ -224,7 +248,7 @@ private:
         import core.stdc.stdlib : realloc;
 
         assert(newcap >= m_length);
-        if (newcap > size_t.max/(PointType.sizeof)) assert(0); // too big
+        if (newcap > size_t.max/PointType.sizeof) assert(0); // too big
         newcap = roundUpPow2(newcap|31);
         if (newcap == 0) assert(0); // overflowed
         m_points = cast(PointType*) realloc(m_points, newcap * PointType.sizeof);
@@ -243,110 +267,489 @@ private:
     size_t m_lastMove = -1;
 }
 
-/*
-  PathIterator, iterate along a path one command at a time. 
-*/
+/**
+  Checks that T implements the "Path" interface, this interface pretty much
+  glues things together, the adaptor functions generally take a path type and
+  return one too.
 
-struct PathIterator(T)
+    FloatType x(size_t) 
+    FloatType y(size_t) 
+    PathCmd cmd(size_t)
+    Point!FloatType point(size_t idx)
+    size_t length()
+
+  where FloatType is float or double.
+*/ 
+
+template isPathType(T)
 {
-    this(ref Path!T path)
-    {
-        m_path = &path;
-        reset();
-    }
+    alias FloatType = ReturnType!(T.x);
 
-    void reset()
-    {
-        m_pos = 0;
-        m_segtype = (m_path.m_length > 0) ?  m_path.m_cmds[0] : PathCmd.empty;
-        assert(m_segtype == PathCmd.empty || m_segtype == PathCmd.move);    
-    }
-
-    void next()
-    {
-        m_pos += m_segtype.advance;
-        m_segtype = (m_pos < m_path.m_length) ? m_path.m_cmds[m_pos] : PathCmd.empty;
-        m_pos -= m_segtype.linked;
-        assert((m_pos+m_segtype.advance) <= m_path.m_length);    
-    }
-
-    PathCmd cmd()
-    {
-        return m_segtype;
-    }
-
-    T x(size_t idx)
-    {
-        assert(idx < m_segtype.advance);
-        return m_path.m_points[m_pos+idx].x;
-    } 
-
-    T y(size_t idx)
-    {
-        assert(idx < m_segtype.advance);
-        return m_path.m_points[m_pos+idx].y;
-    } 
-
-private:
- 
-    Path!T* m_path;
-    PathCmd m_segtype;
-    size_t m_pos;
+    enum isPathType = (isFloatOrDouble!(FloatType)
+        && is(typeof(T.x(size_t.init)) == FloatType)
+        && is(typeof(T.y(size_t.init)) == FloatType)
+        && is(typeof(T.cmd(size_t.init)) == PathCmd)
+        && is(typeof(T.length()) == size_t));   
 }
 
-/*
-  OffsetPathIterator, offsets the path by x,y
+/**
+  A non owning view of a path.
 */
 
-struct OffsetPathIterator(T)
-    if (is(T == float) || is(T == double))
+struct PathView(T)
+    if (isPathType!(T))
 {
-    this(ref Path!T path, T x, T y)
+public:
+
+    PathFloat x(size_t idx)
     {
-        m_path = &path;
-        m_x = x;
-        m_y = y;
-        reset();
+        assert(idx < m_length);
+        return m_path.x(m_start+idx);
     }
 
-    void reset()
+    PathFloat y(size_t idx)
     {
-        m_pos = 0;
-        m_segtype = (m_path.m_length > 0) ?  m_path.m_cmds[0] : PathCmd.empty;
-        assert(m_segtype == PathCmd.empty || m_segtype == PathCmd.move);    
+        assert(idx < m_length);
+        return m_path.y(m_start+idx);
     }
 
-    void next()
+    PathFloat cmd(size_t idx)
     {
-        m_pos += m_segtype.advance;
-        m_segtype = (m_pos < m_path.m_length) ? m_path.m_cmds[m_pos] : PathCmd.empty;
-        m_pos -= m_segtype.linked;
-        assert((m_pos+m_segtype.advance) <= m_path.m_length);    
+        assert(idx < m_length);
+        return m_path.cmd(m_start+idx);
     }
 
-    PathCmd cmd()
+    Point!PathFloat point(size_t idx)
     {
-        return m_segtype;
+        assert(idx < m_length);
+        return m_path.point(m_start+idx);
     }
 
-    T x(size_t idx)
+    size_t length()
     {
-        assert(idx < m_segtype.advance);
-        return m_path.m_points[m_pos+idx].x + m_x;
-    } 
+        return m_length;
+    }
 
-    T y(size_t idx)
+    this(T* path, size_t start, size_t end)
     {
-        assert(idx < m_segtype.advance);
-        return m_path.m_points[m_pos+idx].y + m_y;
-    } 
+        assert((start <= end) && (end <= path.length));
+        m_path = path;
+        m_start = start;
+        m_length = end-start;
+    }
 
 private:
- 
-    Path!T* m_path;
-    PathCmd m_segtype;
-    size_t m_pos;
-    T m_x,m_y;
+    alias PathFloat = ReturnType!(T.x);
+    T* m_path;
+    size_t m_start;
+    size_t m_length;
 }
 
 
+
+
+
+/**
+  Returns a slice of path.
+*/
+
+// as slice bounds may be shorter than path we need to bounds check
+// for the length of the slice
+
+auto slice(T)(auto ref T path, size_t from, size_t to)
+    if (isPathType!(T))
+{
+    alias PathFloat = ReturnType!(T.x);
+
+    struct Slice
+    {
+    public:
+        PathFloat x(size_t idx)
+        {
+            assert(idx < m_length);
+            return m_path.x(m_start+idx);
+        }
+
+        PathFloat y(size_t idx)
+        {
+            assert(idx < m_length);
+            return m_path.y(m_start+idx);
+        }
+
+        PathFloat cmd(size_t idx)
+        {
+            assert(idx < m_length);
+            return m_path.cmd(m_start+idx);
+        }
+
+        Point!PathFloat point(size_t idx)
+        {
+            assert(idx < m_length);
+            return m_path.point(m_start+idx);
+        }
+
+        size_t length()
+        {
+            return m_length;
+        }
+
+        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
+           it by value. */
+
+        static if (__traits(isRef, path))
+        {
+            this (ref T path, size_t from, size_t to)
+            {
+                assert(from <= to && to <= path.length);
+                m_path = &path;
+                m_start = from;
+                m_length = to-from;
+            }
+
+            private T* m_path;
+        }
+        else
+        {
+            this (T path, size_t from, size_t to)
+            {
+                assert(from <= to && to <= path.length);
+                m_path = path;
+                m_start = from;
+                m_length = to-from;
+            }
+
+            private T m_path;
+        }
+
+    private:
+        size_t m_start;
+        size_t m_length;
+    }
+    return Offseter(path, cast(PathFloat) x, cast(PathFloat) y);
+}
+
+
+
+
+
+
+
+
+
+
+/**
+  Returns an iterator that can step along "path" one command at a time. The
+  returned iterator has these properties...
+
+    reset() - resets the iterator to the start of the path
+    next() - advance to the next command
+    cmd() - the current path command
+    x(idx) - x coordinates of the current segment
+    y(idx) - y coordinates of the current segment
+    point(idx) - points of the current segment
+
+  When you use x(),y() or points(), idx is for indexing into the current
+  segment, so if the current segment is a line, 0 will be the first point,
+  1 will be the second. A cubic curve segment can be indexed 0,1,2 or 3.
+  It is bounds checked in debug mode.
+
+  When all the segments are exhausted cmd() will return PathCmd.empty.
+*/
+
+auto segments(T)(auto ref T path)
+{
+    alias PathFloat = ReturnType!(T.x);
+
+    struct Segments
+    {
+        void reset()
+        {
+            m_pos = 0;
+            m_segtype = (m_path.length > 0) ?  m_path.cmd(0) : PathCmd.empty;
+            assert(m_segtype == PathCmd.empty || m_segtype == PathCmd.move);    
+        }
+
+        void next()
+        {
+            m_pos += m_segtype.advance;
+            m_segtype = (m_pos < m_path.length) ? m_path.cmd(m_pos) : PathCmd.empty;
+            m_pos -= m_segtype.linked;
+            assert((m_pos+m_segtype.advance) <= m_path.length);    
+        }
+
+        PathCmd cmd()
+        {
+            return m_segtype;
+        }
+
+        PathFloat x(size_t idx)
+        {
+            assert(idx < m_segtype.advance);
+            return m_path.x(m_pos+idx);
+        } 
+
+        PathFloat y(size_t idx)
+        {
+            assert(idx < m_segtype.advance);
+            return m_path.y(m_pos+idx);
+        }
+
+        Point!PathFloat point(size_t idx)
+        {
+            assert(idx < m_segtype.advance);
+            return m_path.point(m_pos+idx);
+        }
+
+        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
+           it by value. */
+
+        static if (__traits(isRef, path))
+        {
+            this(ref T path)
+            {
+                m_path = &path;
+                reset();
+            }
+
+            private T* m_path;
+        }
+        else
+        {
+            this(Path!T path)
+            {
+                m_path = path;
+                reset();
+            }
+
+            private T m_path;
+        }
+
+    private:
+    
+        PathCmd m_segtype;
+        size_t m_pos;
+    }
+
+    return Segments(path);
+}
+
+/**
+  Returns a lazy offset version of path.
+*/
+
+auto offset(T,F)(auto ref T path, F x, F y)
+    if (isPathType!(T))
+{
+    alias PathFloat = ReturnType!(T.x);
+
+    struct Offseter
+    {
+    public:
+        PathFloat x(size_t idx)
+        {
+            return m_path.x(idx)+m_x;
+        }
+
+        PathFloat y(size_t idx)
+        {
+            return m_path.y(idx)+m_y;
+        }
+
+        PathCmd cmd(size_t idx)
+        {
+            return m_path.cmd(idx);
+        }
+
+        Point!PathFloat point(size_t idx)
+        {
+            return Point!PathFloat(m_path.x(idx)+m_x,m_path.y(idx)+m_y);
+        }
+
+        size_t length()
+        {
+            return m_path.length;
+        }
+
+        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
+           it by value. */
+
+        static if (__traits(isRef, path))
+        {
+            this (ref T path, PathFloat x, PathFloat y)
+            {
+                m_path = &path;
+                m_x = x;
+                m_y = y;
+            }
+
+            private T* m_path;
+        }
+        else
+        {
+            this (T path, PathFloat x, PathFloat y)
+            {
+                m_path = path;
+                m_x = x;
+                m_y = y;
+            }
+
+            private T m_path;
+        }
+
+    private:
+
+        PathFloat m_x;
+        PathFloat m_y;
+    }
+    return Offseter(path, cast(PathFloat) x, cast(PathFloat) y);
+}
+
+/**
+  Returns a lazy scaled version of path.
+*/
+
+auto scale(T,F)(auto ref T path, F sx, F sy)
+    if (isPathType!(T))
+{
+    alias PathFloat = ReturnType!(T.x);
+
+    struct Scaller
+    {
+    public:
+        PathFloat x(size_t idx)
+        {
+            return m_path.x(idx)*m_sx;
+        }
+
+        PathFloat y(size_t idx)
+        {
+            return m_path.y(idx)*m_sy;
+        }
+
+        PathCmd cmd(size_t idx)
+        {
+            return m_path.cmd(idx);
+        }
+
+        Point!PathFloat point(size_t idx)
+        {
+            return Point!PathFloat(m_path.x(idx)*m_sx, m_path.y(idx)*m_sy);
+        }
+
+        size_t length()
+        {
+            return m_path.length;
+        }
+
+        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
+        // it by value.
+
+        static if (__traits(isRef, path))
+        {
+            this (ref T path, PathFloat sx, PathFloat sy)
+            {
+                m_path = &path;
+                m_sx = sx;
+                m_sy = sy;
+            }
+
+            private T* m_path;
+        }
+        else
+        {
+            this (T path, PathFloat sx, PathFloat sy)
+            {
+                m_path = path;
+                m_sx = sx;
+                m_sy = sy;
+            }
+
+            private T m_path;
+        }
+
+    private:
+
+        PathFloat m_sx;
+        PathFloat m_sy;
+    }
+    return Scaller(path, cast(PathFloat) sx, cast(PathFloat) sy);
+}
+
+/**
+  Returns a lazy reversed version of path
+*/
+
+auto retro(T)(auto ref T path)
+    if (isPathType!(T))
+{
+    alias PathFloat = ReturnType!(T.x);
+
+    struct Reverse
+    {
+    public:
+        PathFloat x(size_t idx)
+        {
+            return m_path.x(m_lastidx-idx);
+        }
+
+        PathFloat y(size_t idx)
+        {
+            return m_path.y(m_lastidx-idx);
+        }
+
+        // To reverse the commands we need to offset them by 1 and
+        // insert a move at the start.
+
+        PathCmd cmd(size_t idx)
+        {
+            if (idx == 0)
+            {
+                assert(path.length > 0);
+                return PathCmd.move;
+            }
+            else
+            {
+                return m_path.cmd(path.length-idx);
+            }
+        }
+
+        Point!PathFloat point(size_t idx)
+        {
+            return m_path.point(m_lastidx-idx);
+        }
+
+        size_t length()
+        {
+            return m_path.length;
+        }
+
+        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
+        // it by value. Also note that while (path.length-1) will wrap to
+        // size_t.max if path.length is 0, it doesnt actually matter since
+        // there is no valid index in that case anyway.
+
+        static if (__traits(isRef, path)) 
+        {
+            this (ref T path)
+            {
+                m_path = &path;
+                m_lastidx = path.length-1;
+            }
+
+            private T* m_path;
+        }
+        else
+        {
+            this (T path)
+            {
+                m_path = path;
+                m_lastidx = path.length-1;
+            }
+
+            private T m_path;
+        }
+
+        private size_t m_lastidx;
+    }
+    return Reverse(path);
+}

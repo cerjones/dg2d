@@ -501,7 +501,7 @@ int ttAddGlyphToPath(ref ttFontInfo info, uint glyphId, ref Path!float path,
             // close the path, have to check first point and stick it onto the
             // end if it was a control point
 
-            auto end = path.startOfSubPath();
+            auto end = path.lastMoveTo();
 
             if (firstpt.anchor)
             {

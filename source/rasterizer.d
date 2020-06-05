@@ -525,22 +525,22 @@ class Rasterizer
     {
         for (int i = 0; i < path.length; i++)
         {
-            if (path.getCmd(i) == PathCmd.move)
+            if (path.cmd(i) == PathCmd.move)
             {
                 moveTo(path[i].x, path[i].y);
             }
-            else if (path.getCmd(i) == PathCmd.line)
+            else if (path.cmd(i) == PathCmd.line)
             {
                 lineTo(path[i].x, path[i].y);
             }
-            else if (path.getCmd(i) == PathCmd.quad)
+            else if (path.cmd(i) == PathCmd.quad)
             {
                 quadTo(path[i].x, path[i].y,
                     path[i+1].x, path[i+1].y
                     );
                 i++;
             }
-            else if (path.getCmd(i) == PathCmd.cubic)
+            else if (path.cmd(i) == PathCmd.cubic)
             {
                 cubicTo(path[i].x, path[i].y,
                     path[i+1].x, path[i+1].y,
@@ -571,6 +571,32 @@ class Rasterizer
             case PathCmd.cubic:
                 cubicTo(path.x(1), path.y(1), path.x(2), path.y(2), path.x(3), path.y(3));
                 path.next();
+                goto more;
+            default:
+        }
+    }
+
+    void addPath2(T)(T path)
+    {
+        auto segs = path.segments;
+    more:
+        switch (segs.cmd)
+        {
+            case PathCmd.move:
+                moveTo(segs.x(0), segs.y(0));
+                segs.next();
+                goto more;
+            case PathCmd.line:
+                lineTo(segs.x(1), segs.y(1));
+                segs.next();
+                goto more;
+            case PathCmd.quad:
+                quadTo(segs.x(1), segs.y(1), segs.x(2), segs.y(2));
+                segs.next();
+                goto more;
+            case PathCmd.cubic:
+                cubicTo(segs.x(1), segs.y(1), segs.x(2), segs.y(2), segs.x(3), segs.y(3));
+                segs.next();
                 goto more;
             default:
         }
