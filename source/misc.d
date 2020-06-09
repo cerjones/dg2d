@@ -430,12 +430,14 @@ private:
 
 /*
   (Re)allocate memory from c std heap
+  Just adds type safety and overflow / out of mem checks to realloc
 */
 
-T* dg2dRealloc(T)(T* ptr, size_t length)
+void dg2dRealloc(T)(ref T* ptr, size_t length)
 {
     import core.stdc.stdlib : realloc;
+    if (length > size_t.max/T.sizeof) assert(0); // Too large
     ptr = cast(T*) realloc(ptr, length * T.sizeof);
-    if (ptr == null) assert(0); 
+    if (ptr == null) assert(0); // Alloc failed abandon ship!
 }
 

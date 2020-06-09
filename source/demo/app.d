@@ -285,25 +285,7 @@ void ProfileAll()
 }
 
 // load an svg path string/
-/*
-Path!float loadSvgPath(string filename, float scale)
-{
-	import readpath;
-    import std.stdio;
 
-    File file = File(filename, "r");
-	char[] txt;
-	txt.length = cast(int) file.size;
-    txt = file.rawRead(txt);
-
-	Path!float path;
-    txt = readPathData(txt,path);
-
-    path.scale(scale,scale);
-
-	return path;
-}
-*/
 Path!float loadSvgPath(string txt, float scale)
 {
 	import readpath;

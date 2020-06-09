@@ -5,6 +5,18 @@
   Copyright: Chris Jones
   License: Boost Software License, Version 1.0
   Authors: Chris Jones
+
+   Pseudo code sortof...
+
+  Build a path...
+
+  path!float path;
+  path.moveTo(0,0).lineTo(10,10).quadTo(20,20,20,0).close();
+
+  Use adaptor functions...
+
+  Canvas.draw(path.offset(100,100).retro);
+  
 */
 
 module dg2d.path;
@@ -152,9 +164,9 @@ struct Path(T)
 
     /** get a slice of the path points */
     
-    PathView!(Path!T) opSlice(size_t from, size_t to)
+    auto opSlice(size_t from, size_t to)
     {
-        return PathView!(Path!T)(&this, from, to);
+        return slice(this, from, to);
     }
 
     /** Copy rhs to this path */
@@ -245,16 +257,11 @@ private:
 
     void setCapacity(size_t newcap)
     {
-        import core.stdc.stdlib : realloc;
-
         assert(newcap >= m_length);
-        if (newcap > size_t.max/PointType.sizeof) assert(0); // too big
         newcap = roundUpPow2(newcap|31);
         if (newcap == 0) assert(0); // overflowed
-        m_points = cast(PointType*) realloc(m_points, newcap * PointType.sizeof);
-        if (m_points == null) assert(0); 
-        m_cmds = cast(PathCmd*) realloc(m_cmds, newcap * PathCmd.sizeof);
-        if (m_cmds == null) assert(0); 
+        dg2dRealloc(m_points,newcap);
+        dg2dRealloc(m_cmds,newcap);
         m_capacity = newcap;
     }
 
@@ -268,9 +275,7 @@ private:
 }
 
 /**
-  Checks that T implements the "Path" interface, this interface pretty much
-  glues things together, the adaptor functions generally take a path type and
-  return one too.
+  Checks that T implements the following API...
 
     FloatType x(size_t) 
     FloatType y(size_t) 
@@ -293,75 +298,18 @@ template isPathType(T)
 }
 
 /**
-  A non owning view of a path.
-*/
-
-struct PathView(T)
-    if (isPathType!(T))
-{
-public:
-
-    PathFloat x(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_path.x(m_start+idx);
-    }
-
-    PathFloat y(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_path.y(m_start+idx);
-    }
-
-    PathFloat cmd(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_path.cmd(m_start+idx);
-    }
-
-    Point!PathFloat point(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_path.point(m_start+idx);
-    }
-
-    size_t length()
-    {
-        return m_length;
-    }
-
-    this(T* path, size_t start, size_t end)
-    {
-        assert((start <= end) && (end <= path.length));
-        m_path = path;
-        m_start = start;
-        m_length = end-start;
-    }
-
-private:
-    alias PathFloat = ReturnType!(T.x);
-    T* m_path;
-    size_t m_start;
-    size_t m_length;
-}
-
-
-
-
-
-/**
   Returns a slice of path.
 */
 
-// as slice bounds may be shorter than path we need to bounds check
-// for the length of the slice
+// as slice bounds may be shorter than source path we need to
+// bounds check on the length of the slice
 
 auto slice(T)(auto ref T path, size_t from, size_t to)
     if (isPathType!(T))
 {
     alias PathFloat = ReturnType!(T.x);
 
-    struct Slice
+    struct SlicePath
     {
     public:
         PathFloat x(size_t idx)
@@ -393,8 +341,8 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
             return m_length;
         }
 
-        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
-           it by value. */
+        // If path is an lvalue we grab a pointer, if it's an rvalue we grab
+        // it by value.
 
         static if (__traits(isRef, path))
         {
@@ -425,25 +373,16 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
         size_t m_start;
         size_t m_length;
     }
-    return Offseter(path, cast(PathFloat) x, cast(PathFloat) y);
+    return SlicePath(path, from, to);
 }
 
-
-
-
-
-
-
-
-
-
 /**
-  Returns an iterator that can step along "path" one command at a time. The
-  returned iterator has these properties...
+  Iterate along the path segment by segment. The returned iterator has the
+  following methods...
 
     reset() - resets the iterator to the start of the path
     next() - advance to the next command
-    cmd() - the current path command
+    cmd(idx) - the current segment type / command
     x(idx) - x coordinates of the current segment
     y(idx) - y coordinates of the current segment
     point(idx) - points of the current segment
@@ -453,7 +392,7 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
   1 will be the second. A cubic curve segment can be indexed 0,1,2 or 3.
   It is bounds checked in debug mode.
 
-  When all the segments are exhausted cmd() will return PathCmd.empty.
+  When all the segments are exhausted cmd() will return PathCmd.empty
 */
 
 auto segments(T)(auto ref T path)
@@ -500,8 +439,8 @@ auto segments(T)(auto ref T path)
             return m_path.point(m_pos+idx);
         }
 
-        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
-           it by value. */
+        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
+        // it by value.
 
         static if (__traits(isRef, path))
         {
@@ -534,7 +473,7 @@ auto segments(T)(auto ref T path)
 }
 
 /**
-  Returns a lazy offset version of path.
+  Offset the path by x,y.
 */
 
 auto offset(T,F)(auto ref T path, F x, F y)
@@ -570,8 +509,8 @@ auto offset(T,F)(auto ref T path, F x, F y)
             return m_path.length;
         }
 
-        /* If path is an lvalue we grab a pointer, if it's a rvalue we grab
-           it by value. */
+        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
+        // it by value.
 
         static if (__traits(isRef, path))
         {
@@ -605,7 +544,7 @@ auto offset(T,F)(auto ref T path, F x, F y)
 }
 
 /**
-  Returns a lazy scaled version of path.
+  Scale the path by sx,sy.
 */
 
 auto scale(T,F)(auto ref T path, F sx, F sy)
@@ -613,7 +552,7 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
 {
     alias PathFloat = ReturnType!(T.x);
 
-    struct Scaller
+    struct ScalePath
     {
     public:
         PathFloat x(size_t idx)
@@ -672,11 +611,11 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
         PathFloat m_sx;
         PathFloat m_sy;
     }
-    return Scaller(path, cast(PathFloat) sx, cast(PathFloat) sy);
+    return ScalePath(path, cast(PathFloat) sx, cast(PathFloat) sy);
 }
 
 /**
-  Returns a lazy reversed version of path
+  Access the path in reverse.
 */
 
 auto retro(T)(auto ref T path)
@@ -684,7 +623,7 @@ auto retro(T)(auto ref T path)
 {
     alias PathFloat = ReturnType!(T.x);
 
-    struct Reverse
+    struct RetroPath
     {
     public:
         PathFloat x(size_t idx)
@@ -726,9 +665,9 @@ auto retro(T)(auto ref T path)
         // If path is an lvalue we grab a pointer, if it's a rvalue we grab
         // it by value. Also note that while (path.length-1) will wrap to
         // size_t.max if path.length is 0, it doesnt actually matter since
-        // there is no valid index in that case anyway.
+        // whatever index we calculate will always be invalid anyway.
 
-        static if (__traits(isRef, path)) 
+        static if (__traits(isRef, path))
         {
             this (ref T path)
             {
@@ -751,5 +690,7 @@ auto retro(T)(auto ref T path)
 
         private size_t m_lastidx;
     }
-    return Reverse(path);
+    return RetroPath(path);
 }
+
+// chain, inset, outset, 
