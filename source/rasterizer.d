@@ -583,19 +583,19 @@ class Rasterizer
         switch (segs.cmd)
         {
             case PathCmd.move:
-                moveTo(segs.x(0), segs.y(0));
+                moveTo(segs[0].x, segs[0].y);
                 segs.next();
                 goto more;
             case PathCmd.line:
-                lineTo(segs.x(1), segs.y(1));
+                lineTo(segs[1].x, segs[1].y);
                 segs.next();
                 goto more;
             case PathCmd.quad:
-                quadTo(segs.x(1), segs.y(1), segs.x(2), segs.y(2));
+                quadTo(segs[1].x, segs[1].y, segs[2].x, segs[2].y);
                 segs.next();
                 goto more;
             case PathCmd.cubic:
-                cubicTo(segs.x(1), segs.y(1), segs.x(2), segs.y(2), segs.x(3), segs.y(3));
+                cubicTo(segs[1].x, segs[1].y, segs[2].x, segs[2].y, segs[3].x, segs[3].y);
                 segs.next();
                 goto more;
             default:

@@ -6,7 +6,7 @@
   License: Boost Software License, Version 1.0
   Authors: Chris Jones
 
-   Pseudo code sortof...
+  Pseudo code sortof...
 
   Build a path...
 
@@ -17,6 +17,12 @@
 
   Canvas.draw(path.offset(100,100).retro);
   
+  Modify path
+
+  path = path.retro.offset(10,10);
+
+  Assigning to a path will handle self assignment, and will try to do it in
+  place if it can, otherwise it will use a temporary buffer if needed.
 */
 
 module dg2d.path;
@@ -49,13 +55,12 @@ private int linked(PathCmd cmd) { return cmd >> 7; }
 
 /**
   A 2D geometric path type. The path is built from a sequence of path
-  commands where each command consists of 1 or more points. Each point
-  along the path is tagged with the type of command it belongs to. All
-  commands except for move implicitly link together. In linked commands
-  the last point of the previous command is used as the first point of
-  the following command. This shared point is always tagged for the
-  previous command.
-  A path must always start with an initial move.
+  commands like moveTo or lineTo etc. All commands except for moveTo
+  use the end point of the previous command as their first point. Each
+  point except the first point is tagged with the command type. So the
+  shared point between two commands is always tagged for the previous
+  command. The path can be made up of sub paths. To start a new sub
+  path use a moveTo.
 */
 
 struct Path(T)
@@ -67,9 +72,8 @@ struct Path(T)
 
     ~this()
     {
-        import core.stdc.stdlib : free;
-        free(m_points);
-        free(m_cmds);
+        dg2dFree(m_points);
+        dg2dFree(m_cmds);
     }
 
     /** Move to x,y */
@@ -147,7 +151,7 @@ struct Path(T)
         return this;
     }
 
-    /** Get the coordinates of last move */
+    /** Get the coordinates of last move, IE. the start of current sub path */
 
     Point!T lastMoveTo()
     {
@@ -155,32 +159,48 @@ struct Path(T)
         return m_points[m_lastMove];
     }
 
-    /** array operator access to points */
-
-    ref Point!T opIndex(size_t idx)
-    {
-        return m_points[idx];
-    }
-
-    /** get a slice of the path points */
+    /** get a slice of the path, need to be careful as this doesnt
+    do anything regarding aligning on full commands. */
     
     auto opSlice(size_t from, size_t to)
     {
         return slice(this, from, to);
     }
 
-    /** Copy rhs to this path */
+    /** Copy rhs to this path, this handles self assignment, even if the
+    rhs is a bunch of adaptors ontop of the same path */
 
     void opAssign(P)(auto ref P rhs)
         if (isPathType!(P))
     {
-        if (m_length == rhs.length)
+        uint flags = rhs.getAssignFlags(&this);
+
+        // Special handling if we are assiging to ourself
+
+        if ((flags & AdaptorFlags.SelfAssign) && (flags & AdaptorFlags.Complex))
         {
+            Path temp;
+            temp.append(rhs);
+            swap(m_points, temp.m_points);
+            swap(m_cmds, temp.m_cmds);
+            m_length = temp.m_length;
+            m_capacity = temp.m_capacity;
+            m_lastMove = temp.m_lastMove;
+        }
+        else
+        {
+            // either not self assignment, or doesnt need special handling
+
+            setCapacity(rhs.length);
+
             foreach(size_t i; 0..rhs.length)
             {
-                m_points[i] = rhs.point(i);
+                m_points[i] = rhs[i];
                 m_cmds[i] = rhs.cmd(i);
+                if (m_cmds[i] == PathCmd.move) m_lastMove = i;
             }
+
+            m_length = rhs.length;
         }
     }
 
@@ -201,32 +221,28 @@ struct Path(T)
 
         foreach(size_t i; 0..rhs.length)
         {
-            m_points[m_length+i] = rhs.point(i);
+            m_points[m_length+i] = rhs[i];
             m_cmds[m_length+i] = rhs.cmd(i);
+            if (m_cmds[i] == PathCmd.move) m_lastMove = i;
         }
         m_length += rhs.length;
     }
 
-    /** The number of points in the path */
+    /** path length in points */
 
     size_t length()
     {
         return m_length;
     }
 
-    /** x,y,cmd, and points */
+    /** get the point at given index */
 
-    T x(size_t idx)
+    ref Point!T opIndex(size_t idx)
     {
-        assert(idx < m_length);
-        return m_points[idx].x;
+        return m_points[idx];
     }
 
-    T y(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_points[idx].y;
-    }
+    /** get the command at given index */
 
     PathCmd cmd(size_t idx)
     {
@@ -234,13 +250,12 @@ struct Path(T)
         return m_cmds[idx];
     }
 
-    Point!T point(size_t idx)
-    {
-        assert(idx < m_length);
-        return m_points[idx];
-    }
-
 private:
+
+    uint getAssignFlags(void* dest)
+    {
+        return (dest == &this) ? AdaptorFlags.SelfAssign : 0;
+    }
 
     alias PointType = Point!T;
 
@@ -260,8 +275,8 @@ private:
         assert(newcap >= m_length);
         newcap = roundUpPow2(newcap|31);
         if (newcap == 0) assert(0); // overflowed
-        dg2dRealloc(m_points,newcap);
-        dg2dRealloc(m_cmds,newcap);
+        m_points = dg2dRealloc(m_points,newcap);
+        m_cmds = dg2dRealloc(m_cmds,newcap);
         m_capacity = newcap;
     }
 
@@ -275,65 +290,58 @@ private:
 }
 
 /**
-  Checks that T implements the following API...
+  Returns true if P is a path type. It must have the following methods...
 
-    FloatType x(size_t) 
-    FloatType y(size_t) 
-    PathCmd cmd(size_t)
-    Point!FloatType point(size_t idx)
+    Point!FloatType opIndex(size_t idx)
+    PathCmd cmd(size_t idx)
     size_t length()
 
-  where FloatType is float or double.
+  FloatType can be float or double.
 */ 
 
 template isPathType(T)
 {
-    alias FloatType = ReturnType!(T.x);
+    alias FloatType = typeof(T.opIndex(size_t.init).x);
 
     enum isPathType = (isFloatOrDouble!(FloatType)
-        && is(typeof(T.x(size_t.init)) == FloatType)
-        && is(typeof(T.y(size_t.init)) == FloatType)
+        && is(typeof(T.opIndex(size_t.init)) == Point!FloatType)
         && is(typeof(T.cmd(size_t.init)) == PathCmd)
         && is(typeof(T.length()) == size_t));   
 }
 
-/**
-  Returns a slice of path.
+/* 
+  These flags are used for determining how to handle path opAssign. See
+  that method for more info.
 */
 
-// as slice bounds may be shorter than source path we need to
-// bounds check on the length of the slice
+private enum AdaptorFlags
+{
+    SelfAssign = 1, // source and dest path are the same
+    Complex = 2,    // must be done with temp buffer
+}
+
+/**
+  Slice the path.
+*/
 
 auto slice(T)(auto ref T path, size_t from, size_t to)
     if (isPathType!(T))
 {
-    alias PathFloat = ReturnType!(T.x);
+    alias FloatType = typeof(T[size_t.init].x);
 
     struct SlicePath
     {
     public:
-        PathFloat x(size_t idx)
+        ref Point!FloatType opIndex(size_t idx)
         {
             assert(idx < m_length);
-            return m_path.x(m_start+idx);
+            return m_path.opIndex(m_start+idx);
         }
 
-        PathFloat y(size_t idx)
-        {
-            assert(idx < m_length);
-            return m_path.y(m_start+idx);
-        }
-
-        PathFloat cmd(size_t idx)
+        FloatType cmd(size_t idx)
         {
             assert(idx < m_length);
             return m_path.cmd(m_start+idx);
-        }
-
-        Point!PathFloat point(size_t idx)
-        {
-            assert(idx < m_length);
-            return m_path.point(m_start+idx);
         }
 
         size_t length()
@@ -341,10 +349,7 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
             return m_length;
         }
 
-        // If path is an lvalue we grab a pointer, if it's an rvalue we grab
-        // it by value.
-
-        static if (__traits(isRef, path))
+        static if (__traits(isRef, path)) // grab path by pointer
         {
             this (ref T path, size_t from, size_t to)
             {
@@ -356,7 +361,7 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
 
             private T* m_path;
         }
-        else
+        else // grab path by value
         {
             this (T path, size_t from, size_t to)
             {
@@ -370,6 +375,12 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
         }
 
     private:
+
+        uint getAssignFlags(void* dest)
+        {
+            return m_path.getAssignFlags(dest);
+        }
+
         size_t m_start;
         size_t m_length;
     }
@@ -382,22 +393,20 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
 
     reset() - resets the iterator to the start of the path
     next() - advance to the next command
-    cmd(idx) - the current segment type / command
-    x(idx) - x coordinates of the current segment
-    y(idx) - y coordinates of the current segment
-    point(idx) - points of the current segment
+    PathCmd cmd() - the current command
+    Point!FloatType opIndex(idx) - get segment coordinates
 
-  When you use x(),y() or points(), idx is for indexing into the current
-  segment, so if the current segment is a line, 0 will be the first point,
-  1 will be the second. A cubic curve segment can be indexed 0,1,2 or 3.
+  When you use [] / opIndex the idx is for indexing into the current
+  segment, so if the current command is a line, 0 will be the first point,
+  1 will be the second. A cubic curve command can be indexed 0,1,2 or 3.
   It is bounds checked in debug mode.
 
-  When all the segments are exhausted cmd() will return PathCmd.empty
+  When all the commands are exhausted cmd() will return PathCmd.empty
 */
 
 auto segments(T)(auto ref T path)
 {
-    alias PathFloat = ReturnType!(T.x);
+    alias FloatType = typeof(T[size_t.init].x);
 
     struct Segments
     {
@@ -416,33 +425,18 @@ auto segments(T)(auto ref T path)
             assert((m_pos+m_segtype.advance) <= m_path.length);    
         }
 
+        Point!FloatType opIndex(size_t idx)
+        {
+            assert(idx < m_segtype.advance);
+            return m_path.opIndex(m_pos+idx);
+        }
+
         PathCmd cmd()
         {
             return m_segtype;
         }
 
-        PathFloat x(size_t idx)
-        {
-            assert(idx < m_segtype.advance);
-            return m_path.x(m_pos+idx);
-        } 
-
-        PathFloat y(size_t idx)
-        {
-            assert(idx < m_segtype.advance);
-            return m_path.y(m_pos+idx);
-        }
-
-        Point!PathFloat point(size_t idx)
-        {
-            assert(idx < m_segtype.advance);
-            return m_path.point(m_pos+idx);
-        }
-
-        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
-        // it by value.
-
-        static if (__traits(isRef, path))
+        static if (__traits(isRef, path)) // grab path by pointer
         {
             this(ref T path)
             {
@@ -452,7 +446,7 @@ auto segments(T)(auto ref T path)
 
             private T* m_path;
         }
-        else
+        else // grab path by value
         {
             this(Path!T path)
             {
@@ -464,7 +458,7 @@ auto segments(T)(auto ref T path)
         }
 
     private:
-    
+
         PathCmd m_segtype;
         size_t m_pos;
     }
@@ -479,19 +473,14 @@ auto segments(T)(auto ref T path)
 auto offset(T,F)(auto ref T path, F x, F y)
     if (isPathType!(T))
 {
-    alias PathFloat = ReturnType!(T.x);
+    alias FloatType = typeof(T[size_t.init].x);
 
     struct Offseter
     {
     public:
-        PathFloat x(size_t idx)
+        Point!FloatType opIndex(size_t idx)
         {
-            return m_path.x(idx)+m_x;
-        }
-
-        PathFloat y(size_t idx)
-        {
-            return m_path.y(idx)+m_y;
+            return Point!FloatType(m_path.opIndex(idx).x+m_x,m_path.opIndex(idx).y+m_y);
         }
 
         PathCmd cmd(size_t idx)
@@ -499,22 +488,14 @@ auto offset(T,F)(auto ref T path, F x, F y)
             return m_path.cmd(idx);
         }
 
-        Point!PathFloat point(size_t idx)
-        {
-            return Point!PathFloat(m_path.x(idx)+m_x,m_path.y(idx)+m_y);
-        }
-
         size_t length()
         {
             return m_path.length;
         }
 
-        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
-        // it by value.
-
-        static if (__traits(isRef, path))
+        static if (__traits(isRef, path)) // grab path by pointer
         {
-            this (ref T path, PathFloat x, PathFloat y)
+            this (ref T path, FloatType x, FloatType y)
             {
                 m_path = &path;
                 m_x = x;
@@ -523,9 +504,9 @@ auto offset(T,F)(auto ref T path, F x, F y)
 
             private T* m_path;
         }
-        else
+        else // grab by value
         {
-            this (T path, PathFloat x, PathFloat y)
+            this (T path, FloatType x, FloatType y)
             {
                 m_path = path;
                 m_x = x;
@@ -537,10 +518,15 @@ auto offset(T,F)(auto ref T path, F x, F y)
 
     private:
 
-        PathFloat m_x;
-        PathFloat m_y;
+        uint getAssignFlags(void* dest)
+        {
+            return m_path.getAssignFlags(dest);
+        }
+
+        FloatType m_x;
+        FloatType m_y;
     }
-    return Offseter(path, cast(PathFloat) x, cast(PathFloat) y);
+    return Offseter(path, cast(FloatType) x, cast(FloatType) y);
 }
 
 /**
@@ -550,19 +536,15 @@ auto offset(T,F)(auto ref T path, F x, F y)
 auto scale(T,F)(auto ref T path, F sx, F sy)
     if (isPathType!(T))
 {
-    alias PathFloat = ReturnType!(T.x);
+    alias FloatType = typeof(T[size_t.init].x);
 
     struct ScalePath
     {
     public:
-        PathFloat x(size_t idx)
-        {
-            return m_path.x(idx)*m_sx;
-        }
 
-        PathFloat y(size_t idx)
+        Point!FloatType opIndex(size_t idx)
         {
-            return m_path.y(idx)*m_sy;
+            return Point!FloatType(m_path.opIndex(idx).x*m_sx,m_path.opIndex(idx).y*m_sy);
         }
 
         PathCmd cmd(size_t idx)
@@ -570,22 +552,14 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
             return m_path.cmd(idx);
         }
 
-        Point!PathFloat point(size_t idx)
-        {
-            return Point!PathFloat(m_path.x(idx)*m_sx, m_path.y(idx)*m_sy);
-        }
-
         size_t length()
         {
             return m_path.length;
         }
 
-        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
-        // it by value.
-
-        static if (__traits(isRef, path))
+        static if (__traits(isRef, path)) // grab path by pointer
         {
-            this (ref T path, PathFloat sx, PathFloat sy)
+            this (ref T path, FloatType sx, FloatType sy)
             {
                 m_path = &path;
                 m_sx = sx;
@@ -594,9 +568,9 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
 
             private T* m_path;
         }
-        else
+        else // grab path by value
         {
-            this (T path, PathFloat sx, PathFloat sy)
+            this (T path, FloatType sx, FloatType sy)
             {
                 m_path = path;
                 m_sx = sx;
@@ -608,36 +582,33 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
 
     private:
 
-        PathFloat m_sx;
-        PathFloat m_sy;
+        uint getAssignFlags(void* dest)
+        {
+            return m_path.getAssignFlags(dest);
+        }
+
+        FloatType m_sx;
+        FloatType m_sy;
     }
-    return ScalePath(path, cast(PathFloat) sx, cast(PathFloat) sy);
+    return ScalePath(path, cast(FloatType) sx, cast(FloatType) sy);
 }
 
 /**
-  Access the path in reverse.
+  The path in reverse.
 */
 
 auto retro(T)(auto ref T path)
     if (isPathType!(T))
 {
-    alias PathFloat = ReturnType!(T.x);
+    alias FloatType = typeof(T[size_t.init].x);
 
     struct RetroPath
     {
     public:
-        PathFloat x(size_t idx)
+        Point!FloatType opIndex(size_t idx)
         {
-            return m_path.x(m_lastidx-idx);
+            return m_path.opIndex(m_lastidx-idx);
         }
-
-        PathFloat y(size_t idx)
-        {
-            return m_path.y(m_lastidx-idx);
-        }
-
-        // To reverse the commands we need to offset them by 1 and
-        // insert a move at the start.
 
         PathCmd cmd(size_t idx)
         {
@@ -652,45 +623,73 @@ auto retro(T)(auto ref T path)
             }
         }
 
-        Point!PathFloat point(size_t idx)
-        {
-            return m_path.point(m_lastidx-idx);
-        }
-
         size_t length()
         {
             return m_path.length;
         }
 
-        // If path is an lvalue we grab a pointer, if it's a rvalue we grab
-        // it by value. Also note that while (path.length-1) will wrap to
-        // size_t.max if path.length is 0, it doesnt actually matter since
-        // whatever index we calculate will always be invalid anyway.
-
-        static if (__traits(isRef, path))
+        static if (__traits(isRef, path)) // grab path by pointer
         {
             this (ref T path)
             {
                 m_path = &path;
-                m_lastidx = path.length-1;
+                m_lastidx = path.length-1; // this is OK if length=0, as bounds check will still trigger
             }
 
             private T* m_path;
         }
-        else
+        else // grab path by value
         {
             this (T path)
             {
                 m_path = path;
-                m_lastidx = path.length-1;
+                m_lastidx = path.length-1; // this is OK if length=0, as bounds check will still trigger
             }
 
             private T m_path;
         }
 
-        private size_t m_lastidx;
+    private:
+
+        uint getAssignFlags(void* dest)
+        {
+            return AdaptorFlags.Complex | m_path.getAssignFlags(dest);
+        }
+
+        size_t m_lastidx;
     }
     return RetroPath(path);
 }
 
-// chain, inset, outset, 
+/**
+  Calculate center of path. This calculates the boudning box and returns
+  the center of that.
+*/
+
+auto centerOf(T)(T path)
+    if (isPathType(T))
+{
+    auto bounds = boundingBox(path);
+    return bounds.center;
+}
+
+/**
+  Calculate the bounding box of path.
+*/
+
+auto boundingBox(T)(T path)
+    if (isPathType(T))
+{
+    alias FloatType = typeof(T.opIndex(0).x);
+    Rect!FloatType bounds;
+
+    foreach(i; 0..path.length)
+    {
+        bounds.xMin = min(bounds.xMin,path[i].x);
+        bounds.xMax = max(bounds.xMax,path[i].x);
+        bounds.yMin = min(bounds.yMin,path[i].y);
+        bounds.yMax = max(bounds.yMax,path[i].y);
+    }
+    return bounds;
+}
+

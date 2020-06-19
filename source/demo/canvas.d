@@ -43,10 +43,10 @@ class Canvas
         if (!m_pixels) assert(0);
         m_width = width;
         m_height = height;
-        m_view.x0 = 0;
-        m_view.y0 = 0;
-        m_view.x1 = width;
-        m_view.y1 = height;
+        m_view.left = 0;
+        m_view.top = 0;
+        m_view.right = width;
+        m_view.bottom = height;
         m_clip = m_view;
     }
 
@@ -75,24 +75,24 @@ class Canvas
         fill(color, 0, 0, m_width, m_height);
     }
 
-    void fill(uint color, Rect!int rect)
+    void fill(uint color, IRect rect)
     {
-        fill(color, rect.x0, rect.y0, rect.x1, rect.y1);
+        fill(color, rect.left, rect.top, rect.right, rect.bottom);
     }
 
     void fill(uint color, int x0, int y0, int x1, int y1)
     {      
         if (!isClipValid) return;
 
-        x0 += m_view.x0;
-        y0 += m_view.y0;
-        x1 += m_view.x0;
-        y1 += m_view.y0;
+        x0 += m_view.left;
+        y0 += m_view.top;
+        x1 += m_view.right;
+        y1 += m_view.bottom;
  
-        int l = max(m_view.x0 + x0, m_clip.x0);
-        int t = max(m_view.y0 + y0, m_clip.y0);
-        int r = min(m_view.x0 + x1, m_clip.x1);
-        int b = min(m_view.y0 + y1, m_clip.y1);
+        int l = max(m_view.left + x0, m_clip.left);
+        int t = max(m_view.top + y0, m_clip.top);
+        int r = min(m_view.left + x1, m_clip.right);
+        int b = min(m_view.top + y1, m_clip.bottom);
 
         if (r <= l) return;
 
@@ -107,8 +107,8 @@ class Canvas
 
         if (!isClipValid) return;
 
-        m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
+        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
+        m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
         ColorBlit cb;
         cb.init(m_pixels,m_stride,m_height,color);
@@ -122,13 +122,13 @@ class Canvas
 
         if (!isClipValid) return;
 
-        x0 += m_view.x0;
-        y0 += m_view.y0;
-        x1 += m_view.x0;
-        y1 += m_view.y0;
+        x0 += m_view.left;
+        y0 += m_view.top;
+        x1 += m_view.left;
+        y1 += m_view.top;
 
-        m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
+        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
+        m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
         LinearBlit lb;
         lb.init(m_pixels, m_stride, m_height, grad, x0, y0, x1, y1);
@@ -142,13 +142,13 @@ class Canvas
 
         if (!isClipValid) return;
 
-        x0 += m_view.x0;
-        y0 += m_view.y0;
-        x1 += m_view.x0;
-        y1 += m_view.y0;
+        x0 += m_view.left;
+        y0 += m_view.top;
+        x1 += m_view.left;
+        y1 += m_view.top;
 
-        m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
+        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
+        m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
         RadialBlit rb;
         rb.init(m_pixels,m_stride,m_height,&grad,x0,y0,x1,y1,r);
@@ -163,13 +163,13 @@ class Canvas
 
         if (!isClipValid) return;
 
-        x0 += m_view.x0;
-        y0 += m_view.y0;
-        x1 += m_view.x0;
-        y1 += m_view.y0;
+        x0 += m_view.left;
+        y0 += m_view.top;
+        x1 += m_view.left;
+        y1 += m_view.top;
 
-        m_rasterizer.initialise(m_clip.x0, m_clip.y0, m_clip.x1, m_clip.y1);
-        m_rasterizer.addPath2(path.offset(m_view.x0,m_view.y0));
+        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
+        m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
         AngularBlit ab;
         ab.init(m_pixels,m_stride,m_height,grad,x0,y0,x1,y1,r2);
@@ -182,12 +182,12 @@ class Canvas
 
         if (!isClipValid) return;
 
-        x += m_view.x0;
-        y += m_view.y0;
+        x += m_view.left;
+        y += m_view.top;
 
         float lpc = r*0.44772;
 
-        m_rasterizer.initialise(m_clip.x0,m_clip.y0,m_clip.x1, m_clip.y1);
+        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
 
         m_rasterizer.moveTo(x+r,y);
         m_rasterizer.lineTo(x+w-r,y);
@@ -229,26 +229,26 @@ class Canvas
 
     void setView(int x0, int y0, int x1, int y1)
     {
-        m_view.x1 = m_view.x0 + x1;
-        m_view.y1 = m_view.y0 + y1;
-        m_view.x0 = m_view.x0 + x0;
-        m_view.y0 = m_view.y0 + y0;
-        m_clip.x0 = max(m_clip.x0, m_view.x0);
-        m_clip.y0 = max(m_clip.y0, m_view.y0);
-        m_clip.x1 = min(m_clip.x1, m_view.x1);
-        m_clip.y1 = min(m_clip.y1, m_view.y1);
+        m_view.right = m_view.left + x1;
+        m_view.bottom = m_view.top + y1;
+        m_view.left = m_view.left + x0;
+        m_view.top = m_view.top + y0;
+        m_clip.left = max(m_clip.left, m_view.left);
+        m_clip.top = max(m_clip.top, m_view.top);
+        m_clip.right = min(m_clip.right, m_view.right);
+        m_clip.bottom = min(m_clip.bottom, m_view.bottom);
     }
 
     void setView(ref ViewState state, int x0, int y0, int x1, int y1)
     {
-        m_view.x1 = state.view.x0 + x1;
-        m_view.y1 = state.view.y0 + y1;
-        m_view.x0 = state.view.x0 + x0;
-        m_view.y0 = state.view.y0 + y0;
-        m_clip.x0 = max(state.clip.x0, m_view.x0);
-        m_clip.y0 = max(state.clip.y0, m_view.y0);
-        m_clip.x1 = min(state.clip.x1, m_view.x1);
-        m_clip.y1 = min(state.clip.y1, m_view.y1);
+        m_view.right = state.view.left + x1;
+        m_view.bottom = state.view.top + y1;
+        m_view.left = state.view.left + x0;
+        m_view.top = state.view.top + y0;
+        m_clip.left = max(state.clip.left, m_view.left);
+        m_clip.top = max(state.clip.top, m_view.top);
+        m_clip.right = min(state.clip.right, m_view.right);
+        m_clip.bottom = min(state.clip.bottom, m_view.bottom);
     }
 
     void resetState(ref ViewState state)
@@ -259,24 +259,23 @@ class Canvas
 
     bool isClipValid()
     {
-        return ((m_clip.x0 < m_clip.x1)
-          && (m_clip.y0 < m_clip.y1));
+        return !m_clip.isEmpty;
     }
 
     void setClip(int x0, int y0, int x1, int y1)
     {
-        m_clip.x0 = max(m_view.x0+x0,m_clip.x0);
-        m_clip.y0 = max(m_view.y0+y0,m_clip.y0);
-        m_clip.x1 = min(m_view.x0+x1,m_clip.x1);
-        m_clip.y1 = min(m_view.y0+y1,m_clip.y1);
+        m_clip.left = max(m_view.left+x0,m_clip.left);
+        m_clip.top = max(m_view.top+y0,m_clip.top);
+        m_clip.right = min(m_view.left+x1,m_clip.right);
+        m_clip.bottom = min(m_view.top+y1,m_clip.bottom);
     }
 
     void resetView()
     {
-        m_view.x0 = 0;
-        m_view.y0 = 0;
-        m_view.x1 = m_width;
-        m_view.y1 = m_height;
+        m_view.left = 0;
+        m_view.top = 0;
+        m_view.right = m_width;
+        m_view.bottom = m_height;
         m_clip = m_view;
     }
 
@@ -287,8 +286,8 @@ private:
     int          m_width;
     int          m_height;
     int          m_stride;
-    Rect!int     m_view;
-    Rect!int     m_clip;
+    IRect        m_view;
+    IRect        m_clip;
     Rasterizer   m_rasterizer;
     Path!float   m_tmppath;     // workspace
 }
@@ -298,7 +297,7 @@ private:
 struct ViewState
 {
 private:
-    Rect!int view;
-    Rect!int clip;
+    IRect view;
+    IRect clip;
 }
 

@@ -427,17 +427,31 @@ private:
     void* m_data; // unaligned data
 }
 
-
 /*
-  (Re)allocate memory from c std heap
-  Just adds type safety and overflow / out of mem checks to realloc
+  Realloc and malloc memory from c std heap
+  Adds type safety and overflow / out of mem checks
 */
 
-void dg2dRealloc(T)(ref T* ptr, size_t length)
+T* dg2dRealloc(T)(T* ptr, size_t length = 1)
 {
     import core.stdc.stdlib : realloc;
     if (length > size_t.max/T.sizeof) assert(0); // Too large
     ptr = cast(T*) realloc(ptr, length * T.sizeof);
     if (ptr == null) assert(0); // Alloc failed abandon ship!
+    return ptr;
 }
 
+T* dg2dMalloc(T)(size_t length = 1)
+{
+    import core.stdc.stdlib : malloc;
+    if (length > size_t.max/T.sizeof) assert(0); // Too large
+    T* ptr = cast(T*) malloc(length * T.sizeof);
+    if (ptr == null) assert(0); // Alloc failed abandon ship!
+    return ptr;
+}
+
+void dg2dFree(void* ptr)
+{
+    import core.stdc.stdlib : free;
+    free(ptr);
+}

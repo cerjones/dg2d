@@ -13,6 +13,7 @@ import canvas;
 import font;
 
 import dg2d.path;
+import dg2d.geometry;
 import dg2d.gradient;
 import dg2d.misc;
 import dg2d.rasterizer;
@@ -207,8 +208,13 @@ static this()
 {
     import rawgfx;
 
-    Path!float path;
-    gfx_area.moveTo(50,50).lineTo(750,50).lineTo(750,750).lineTo(50,750).lineTo(50,50);
+    //gfx_area.moveTo(50,50).lineTo(750,50).lineTo(750,750).lineTo(50,750).lineTo(50,50);
+    
+    Rect!float rect = Rect!float(100,100,500,500);
+    gfx_area.append(rect.asPath);
+    gfx_area.append(rect.inset(20).asPath.retro);
+    gfx_area.append((rect + [100.0,100.0]).asPath);
+    
 
 	gfx_borders = loadSvgPath(rawborders,1);
 	gfx_lines50 = randomPath(50,1);
@@ -294,9 +300,9 @@ Path!float loadSvgPath(string txt, float scale)
 	Path!float path;
     readPathData(txt,path);
 
-    path.scale(scale,scale);
+//    path.scale(scale,scale);
 
-//    path = path.scale(scale,scale);
+    path = path.scale(scale,scale);
 
 	return path;
 }
