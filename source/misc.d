@@ -432,7 +432,7 @@ private:
   Adds type safety and overflow / out of mem checks
 */
 
-T* dg2dRealloc(T)(T* ptr, size_t length = 1)
+T* dg2dRealloc(T)(T* ptr, size_t length)
 {
     import core.stdc.stdlib : realloc;
     if (length > size_t.max/T.sizeof) assert(0); // Too large
@@ -440,7 +440,7 @@ T* dg2dRealloc(T)(T* ptr, size_t length = 1)
     if (ptr == null) assert(0); // Alloc failed abandon ship!
     return ptr;
 }
-
+/*
 T* dg2dMalloc(T)(size_t length = 1)
 {
     import core.stdc.stdlib : malloc;
@@ -449,7 +449,7 @@ T* dg2dMalloc(T)(size_t length = 1)
     if (ptr == null) assert(0); // Alloc failed abandon ship!
     return ptr;
 }
-
+*/
 void dg2dFree(void* ptr)
 {
     import core.stdc.stdlib : free;

@@ -6,12 +6,10 @@
   License: Boost Software License, Version 1.0
   Authors: Chris Jones
 
-  Pseudo code sortof...
-
   Build a path...
 
-  path!float path;
-  path.moveTo(0,0).lineTo(10,10).quadTo(20,20,20,0).close();
+  Path!float path;
+  path.moveTo(0,0).lineTo(10,10).quadTo(20,20,30,30).close();
 
   Use adaptor functions...
 
@@ -173,13 +171,11 @@ struct Path(T)
     void opAssign(P)(auto ref P rhs)
         if (isPathType!(P))
     {
-        uint flags = rhs.getAssignFlags(&this);
-
         // Special handling if we are assiging to ourself
 
-        if ((flags & AdaptorFlags.SelfAssign) && (flags & AdaptorFlags.Complex))
+        if ((rhs.source == &this) && (!rhs.inPlace))
         {
-            Path temp;
+            Path!T temp;
             temp.append(rhs);
             swap(m_points, temp.m_points);
             swap(m_cmds, temp.m_cmds);
@@ -219,20 +215,13 @@ struct Path(T)
         if (rhs.length == 0) return;
         makeRoomFor(rhs.length);
 
-        foreach(size_t i; 0..rhs.length)
+        foreach(i; 0..rhs.length)
         {
             m_points[m_length+i] = rhs[i];
             m_cmds[m_length+i] = rhs.cmd(i);
             if (m_cmds[i] == PathCmd.move) m_lastMove = i;
         }
         m_length += rhs.length;
-    }
-
-    /** path length in points */
-
-    size_t length()
-    {
-        return m_length;
     }
 
     /** get the point at given index */
@@ -250,12 +239,15 @@ struct Path(T)
         return m_cmds[idx];
     }
 
-private:
-
-    uint getAssignFlags(void* dest)
+    size_t length()
     {
-        return (dest == &this) ? AdaptorFlags.SelfAssign : 0;
+        return m_length;
     }
+
+    void* source() { return &this; }
+    bool inPlace() { return true; }
+
+private:
 
     alias PointType = Point!T;
 
@@ -295,8 +287,15 @@ private:
     Point!FloatType opIndex(size_t idx)
     PathCmd cmd(size_t idx)
     size_t length()
+    void* source()
+    bool inPlace()
 
   FloatType can be float or double.
+
+  opIndex, length amd cmd, should be self explanatory.
+
+  The last two methods are used by Path.opAssign to check for self
+  assignment and if so is it safe to do it in place.
 */ 
 
 template isPathType(T)
@@ -306,18 +305,9 @@ template isPathType(T)
     enum isPathType = (isFloatOrDouble!(FloatType)
         && is(typeof(T.opIndex(size_t.init)) == Point!FloatType)
         && is(typeof(T.cmd(size_t.init)) == PathCmd)
-        && is(typeof(T.length()) == size_t));   
-}
-
-/* 
-  These flags are used for determining how to handle path opAssign. See
-  that method for more info.
-*/
-
-private enum AdaptorFlags
-{
-    SelfAssign = 1, // source and dest path are the same
-    Complex = 2,    // must be done with temp buffer
+        && is(typeof(T.length()) == size_t)
+        && is(typeof(T.source()) == void*)
+        && is(typeof(T.inPlace()) == bool));
 }
 
 /**
@@ -376,14 +366,10 @@ auto slice(T)(auto ref T path, size_t from, size_t to)
 
     private:
 
-        uint getAssignFlags(void* dest)
-        {
-            return m_path.getAssignFlags(dest);
-        }
-
         size_t m_start;
         size_t m_length;
     }
+
     return SlicePath(path, from, to);
 }
 
@@ -408,7 +394,7 @@ auto segments(T)(auto ref T path)
 {
     alias FloatType = typeof(T[size_t.init].x);
 
-    struct Segments
+    struct SegmentsPath
     {
         void reset()
         {
@@ -463,7 +449,7 @@ auto segments(T)(auto ref T path)
         size_t m_pos;
     }
 
-    return Segments(path);
+    return SegmentsPath(path);
 }
 
 /**
@@ -475,7 +461,7 @@ auto offset(T,F)(auto ref T path, F x, F y)
 {
     alias FloatType = typeof(T[size_t.init].x);
 
-    struct Offseter
+    struct OffsetPath
     {
     public:
         Point!FloatType opIndex(size_t idx)
@@ -488,49 +474,29 @@ auto offset(T,F)(auto ref T path, F x, F y)
             return m_path.cmd(idx);
         }
 
-        size_t length()
-        {
-            return m_path.length;
-        }
-
-        static if (__traits(isRef, path)) // grab path by pointer
-        {
-            this (ref T path, FloatType x, FloatType y)
-            {
-                m_path = &path;
-                m_x = x;
-                m_y = y;
-            }
-
-            private T* m_path;
-        }
-        else // grab by value
-        {
-            this (T path, FloatType x, FloatType y)
-            {
-                m_path = path;
-                m_x = x;
-                m_y = y;
-            }
-
-            private T m_path;
-        }
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return m_path.inPlace; }
 
     private:
 
-        uint getAssignFlags(void* dest)
-        {
-            return m_path.getAssignFlags(dest);
-        }
+        static if (__traits(isRef, path))
+            private T* m_path;
+        else
+            private T m_path;
 
         FloatType m_x;
         FloatType m_y;
     }
-    return Offseter(path, cast(FloatType) x, cast(FloatType) y);
+
+    static if (__traits(isRef, path))
+        return OffsetPath(&path, cast(FloatType) x, cast(FloatType) y);
+    else
+        return OffsetPath(path, cast(FloatType) x, cast(FloatType) y);
 }
 
 /**
-  Scale the path by sx,sy.
+  Scale the path by sx,sy
 */
 
 auto scale(T,F)(auto ref T path, F sx, F sy)
@@ -552,45 +518,73 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
             return m_path.cmd(idx);
         }
 
-        size_t length()
-        {
-            return m_path.length;
-        }
-
-        static if (__traits(isRef, path)) // grab path by pointer
-        {
-            this (ref T path, FloatType sx, FloatType sy)
-            {
-                m_path = &path;
-                m_sx = sx;
-                m_sy = sy;
-            }
-
-            private T* m_path;
-        }
-        else // grab path by value
-        {
-            this (T path, FloatType sx, FloatType sy)
-            {
-                m_path = path;
-                m_sx = sx;
-                m_sy = sy;
-            }
-
-            private T m_path;
-        }
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return m_path.inPlace; }
 
     private:
 
-        uint getAssignFlags(void* dest)
-        {
-            return m_path.getAssignFlags(dest);
-        }
+        static if (__traits(isRef, path))
+            T* m_path;
+        else
+            T m_path;
 
         FloatType m_sx;
         FloatType m_sy;
     }
-    return ScalePath(path, cast(FloatType) sx, cast(FloatType) sy);
+
+    static if (__traits(isRef, path))
+        return ScalePath(&path, cast(FloatType) sx, cast(FloatType) sy);
+    else
+        return ScalePath(path, cast(FloatType) sx, cast(FloatType) sy);
+}
+
+/**
+  Scale the path by sx,sy relative to (center_x,center_y)
+*/
+
+auto scale(T,F)(auto ref T path, F sx, F sy, F center_x, F center_y)
+    if (isPathType!(T))
+{
+    alias FloatType = typeof(T[size_t.init].x);
+
+    struct ScalePath
+    {
+    public:
+
+        Point!FloatType opIndex(size_t idx)
+        {
+            return Point!FloatType(
+                (m_path.opIndex(idx).x-m_ctrx)*m_sx+m_ctrx,
+                (m_path.opIndex(idx).y-m_ctry)*m_sy+m_ctrx
+                );
+        }
+
+        PathCmd cmd(size_t idx)
+        {
+            return m_path.cmd(idx);
+        }
+
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return m_path.inPlace; }
+
+    private:
+
+        static if (__traits(isRef, path))
+            T* m_path;
+        else
+            T m_path;
+
+        FloatType m_sx,m_sy,m_ctrx,m_ctry;
+    }
+
+    static if (__traits(isRef, path))
+        return ScalePath(&path, cast(FloatType) sx, cast(FloatType) sy,
+            cast(FloatType) center_x, cast(FloatType) center_y);
+    else
+        return ScalePath(path, cast(FloatType) sx, cast(FloatType) sy,
+            cast(FloatType) center_x, cast(FloatType) center_y);
 }
 
 /**
@@ -600,7 +594,7 @@ auto scale(T,F)(auto ref T path, F sx, F sy)
 auto retro(T)(auto ref T path)
     if (isPathType!(T))
 {
-    alias FloatType = typeof(T[size_t.init].x);
+    alias FloatType = typeof(T[0].x);
 
     struct RetroPath
     {
@@ -614,7 +608,6 @@ auto retro(T)(auto ref T path)
         {
             if (idx == 0)
             {
-                assert(path.length > 0);
                 return PathCmd.move;
             }
             else
@@ -623,42 +616,122 @@ auto retro(T)(auto ref T path)
             }
         }
 
-        size_t length()
-        {
-            return m_path.length;
-        }
-
-        static if (__traits(isRef, path)) // grab path by pointer
-        {
-            this (ref T path)
-            {
-                m_path = &path;
-                m_lastidx = path.length-1; // this is OK if length=0, as bounds check will still trigger
-            }
-
-            private T* m_path;
-        }
-        else // grab path by value
-        {
-            this (T path)
-            {
-                m_path = path;
-                m_lastidx = path.length-1; // this is OK if length=0, as bounds check will still trigger
-            }
-
-            private T m_path;
-        }
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return false; } // cand be done in place
 
     private:
 
-        uint getAssignFlags(void* dest)
-        {
-            return AdaptorFlags.Complex | m_path.getAssignFlags(dest);
-        }
+        static if (__traits(isRef, path))
+            T* m_path;
+        else
+            T m_path; 
 
         size_t m_lastidx;
     }
-    return RetroPath(path);
+
+    // (path.length-1) will wrap arround when path.length = 0, but 
+    // theres no need to check for it because any index you calculate
+    // will be invalid and cause an assert in the root path anyway.
+
+    static if (__traits(isRef, path))
+        return RetroPath(&path, path.length-1);
+    else
+        return RetroPath(path, path.length-1);
+}
+
+/**
+  Rotate the path around (0,0)
+*/
+
+auto rotate(T,F)(auto ref T path, F angle)
+    if (isPathType!(T))
+{
+    alias FloatType = typeof(T[0].x);
+
+    struct RotatePath
+    {
+    public:
+        Point!FloatType opIndex(size_t idx)
+        {
+            FloatType tx = m_path.opIndex(idx).x;
+            FloatType ty = m_path.opIndex(idx).y;
+            return Point!FloatType(tx*m_cos-ty*m_sin,  tx*m_sin+ty*m_cos);
+        }
+
+        PathCmd cmd(size_t idx)
+        {
+            return m_path.cmd(idx);
+        }
+
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return false; } // cand be done in place
+
+    private:
+
+        static if (__traits(isRef, path))
+            T* m_path;
+        else
+            T m_path; 
+
+        FloatType m_sin,m_cos;
+    }
+
+    import std.math;
+
+    static if (__traits(isRef, path))
+        return RotatePath(&path, cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+    else
+        return RotatePath(path, cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+}
+
+/**
+  Rotate the path around (x,y)
+*/
+
+auto rotate(T,F)(auto ref T path, F pivot_x, F pivot_y, F angle)
+    if (isPathType!(T))
+{
+    alias FloatType = typeof(T[0].x);
+
+    struct RotatePath
+    {
+    public:
+        Point!FloatType opIndex(size_t idx)
+        {
+            FloatType tx = m_path.opIndex(idx).x - m_px;
+            FloatType ty = m_path.opIndex(idx).y - m_py;
+            return Point!FloatType(tx*m_cos-ty*m_sin+m_px,  tx*m_sin+ty*m_cos+m_py);
+        }
+
+        PathCmd cmd(size_t idx)
+        {
+            return m_path.cmd(idx);
+        }
+
+        size_t length() { return m_path.length; }
+        void* source() { return m_path.source; }
+        bool inPlace() { return false; } // cand be done in place
+
+    private:
+
+        static if (__traits(isRef, path))
+            T* m_path;
+        else
+            T m_path; 
+
+        FloatType m_px,m_py,m_sin,m_cos;
+    }
+
+    import std.math;
+
+    static if (__traits(isRef, path))
+        return RotatePath(&path, cast(FloatType) pivot_x, cast(FloatType) pivot_y,
+            cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+    else
+        return RotatePath(path, cast(FloatType) pivot_x, cast(FloatType) pivot_y,
+            cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
 }
 
 /**
@@ -669,8 +742,7 @@ auto retro(T)(auto ref T path)
 auto centerOf(T)(T path)
     if (isPathType(T))
 {
-    auto bounds = boundingBox(path);
-    return bounds.center;
+    return path.boundingBox.center;
 }
 
 /**
@@ -680,7 +752,7 @@ auto centerOf(T)(T path)
 auto boundingBox(T)(T path)
     if (isPathType(T))
 {
-    alias FloatType = typeof(T.opIndex(0).x);
+    alias FloatType = typeof(T.opIndex(size_t.init).x);
     Rect!FloatType bounds;
 
     foreach(i; 0..path.length)
@@ -692,4 +764,3 @@ auto boundingBox(T)(T path)
     }
     return bounds;
 }
-

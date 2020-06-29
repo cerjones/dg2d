@@ -241,10 +241,10 @@ class Canvas
 
     void setView(ref ViewState state, int x0, int y0, int x1, int y1)
     {
-        m_view.right = state.view.left + x1;
-        m_view.bottom = state.view.top + y1;
         m_view.left = state.view.left + x0;
         m_view.top = state.view.top + y0;
+        m_view.right = state.view.left + x1;
+        m_view.bottom = state.view.top + y1;
         m_clip.left = max(state.clip.left, m_view.left);
         m_clip.top = max(state.clip.top, m_view.top);
         m_clip.right = min(state.clip.right, m_view.right);
@@ -259,7 +259,7 @@ class Canvas
 
     bool isClipValid()
     {
-        return !m_clip.isEmpty;
+        return ((m_clip.left < m_clip.right) && (m_clip.top < m_clip.bottom));
     }
 
     void setClip(int x0, int y0, int x1, int y1)

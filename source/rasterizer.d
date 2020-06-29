@@ -507,7 +507,7 @@ class Rasterizer
         double d2 = abs(((x1 - x3) * dy - (y1 - y3) * dx));
         double d3 = abs(((x2 - x3) * dy - (y2 - y3) * dx));
 
-        if((d2 + d3)*(d2 + d3) < 0.5 * (dx*dx + dy*dy))
+        if((d2 + d3)*(d2 + d3) <= 0.5 * (dx*dx + dy*dy))
         {
             intLineTo(cast(int)(x3 * fpScale), cast(int)(y3 * fpScale));
         }

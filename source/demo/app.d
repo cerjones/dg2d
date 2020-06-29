@@ -208,15 +208,28 @@ static this()
 {
     import rawgfx;
 
-    //gfx_area.moveTo(50,50).lineTo(750,50).lineTo(750,750).lineTo(50,750).lineTo(50,50);
+    RoundRect!float rect = RoundRect!float(100,100,500,500,60,60);
     
-    Rect!float rect = Rect!float(100,100,500,500);
-    gfx_area.append(rect.asPath);
-    gfx_area.append(rect.inset(20).asPath.retro);
-    gfx_area.append((rect + [100.0,100.0]).asPath);
-    
+    foreach(i; 0..36)
+    {
+        gfx_area.append(rect.asPath.scale(i*0.02,i*0.02,500,500).rotate(300,300,i*10));
+    }
 
-	gfx_borders = loadSvgPath(rawborders,1);
+    RoundRect!float[70] rrr;
+
+    foreach(i; 0..rrr.length)
+    {
+        retry:
+            rrr[i] = randomRoundRect();
+            auto osr = rrr[i].outset(8,true);
+            foreach(q; 0..i)
+                if (!intersect(osr,rrr[q]).isEmpty) goto retry; 
+        gfx_borders.append(rrr[i].asPath);
+        gfx_borders.append(rrr[i].inset(10,true).asPath.retro);
+    }
+
+
+//	gfx_borders = loadSvgPath(rawborders,1);
 	gfx_lines50 = randomPath(50,1);
 	gfx_lines250 = randomPath(250,20);
 	gfx_rects = loadSvgPath(rawrects,1);
@@ -391,11 +404,10 @@ Path!float randomPath(int n, int seed)
 }
 
 // generate random rounded rects
-
+/*
 Path!float randomRoundRect(int n, int seed)
 {
     import std.random;
-    import std.math : sqrt;
     
     auto rnd = Random(seed);
 
@@ -422,6 +434,23 @@ Path!float randomRoundRect(int n, int seed)
     }
     return path;
 }
+*/
+RoundRect!float randomRoundRect()
+{
+    import std.random;
+    static auto rnd = Random(123);
+
+    float x = uniform(0, 600.0f, rnd);
+    float y = uniform(0, 600.0f, rnd);
+    float w = uniform(20, 200, rnd);
+    float h = uniform(20, 200, rnd);
+    float c = uniform(2.0f, ((w<h) ? w : h)/2, rnd);
+
+    RoundRect!float rect = RoundRect!float(x,y,x+w,y+w,c,c);
+
+    return rect;
+}
+
 
 // build some text as a path
 
