@@ -17,6 +17,7 @@
   
   Modify path
 
+  path = path.scale(2,2);
   path = path.retro.offset(10,10);
 
   Assigning to a path will handle self assignment, and will try to do it in

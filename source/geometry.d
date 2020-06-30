@@ -9,6 +9,20 @@
   Copyright: Chris Jones
   License: Boost Software License, Version 1.0
   Authors: Chris Jones
+
+  General features...
+
+  asPath can be used on Rect and RoundRect to get a Path type that can
+  be used with the path adaptors, and assigned to a path. EG..
+
+  auto rect = RoundRect!float(10,10,20,20,3,3);
+  rasterizer.addPath(rect.asPath);
+  Path!float path;
+  path.append(rect.asPath.retro);
+
+  intersect(rect,rect) -- intersection of two rects
+  combine(rect,rect) -- union of two rects
+
 */
 
 

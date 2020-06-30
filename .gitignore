@@ -1,9 +1,9 @@
 .dub/
+.vs/
 .vscode/
 dub.selections.json
 *.exe
 *.lib
 mixins.txt
 todo.txt
-oldsource/
-issues/
+*.sln

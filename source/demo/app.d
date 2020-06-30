@@ -127,8 +127,8 @@ class GFXPanel : Widget
         {
             case 0: tmpcvs.fill(*sel_path,0xFFFFFFFF,sel_wind); break;
             case 1: tmpcvs.fillLinear(*sel_path,gfx_grad1,sel_wind,50,50,720,720); break;
-            case 2: tmpcvs.fillRadial(*sel_path,gfx_grad2,sel_wind,300,300,500,700,150); break;
-            case 3: tmpcvs.fillAngular(*sel_path,gfx_grad1,sel_wind,300,300,500,300,200); break;
+            case 2: tmpcvs.fillRadial(*sel_path,gfx_grad2,sel_wind,400,400,500,700,150); break;
+            case 3: tmpcvs.fillAngular(*sel_path,gfx_grad1,sel_wind,400,400,500,300,200); break;
             default: break;      
         }
 
@@ -208,11 +208,11 @@ static this()
 {
     import rawgfx;
 
-    RoundRect!float rect = RoundRect!float(100,100,500,500,60,60);
+    RoundRect!float rect = RoundRect!float(200,200,600,600,60,60);
     
     foreach(i; 0..36)
     {
-        gfx_area.append(rect.asPath.scale(i*0.02,i*0.02,500,500).rotate(300,300,i*10));
+        gfx_area.append(rect.asPath.scale(i*0.02,i*0.02,600,600).rotate(400,400,i*10));
     }
 
     RoundRect!float[70] rrr;
@@ -227,7 +227,6 @@ static this()
         gfx_borders.append(rrr[i].asPath);
         gfx_borders.append(rrr[i].inset(10,true).asPath.retro);
     }
-
 
 //	gfx_borders = loadSvgPath(rawborders,1);
 	gfx_lines50 = randomPath(50,1);
