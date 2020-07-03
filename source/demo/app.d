@@ -71,11 +71,11 @@ class GFXPanel : Widget
                 break;
             case 2:
                 canvas.fill(0xFF101520);
-                canvas.fillRadial(*sel_path,gfx_grad2,sel_wind,300,300,500,700,150);
+                canvas.fillRadial(*sel_path,gfx_grad2,sel_wind,380,350,500,700,150);
                 break;
             case 3:
                 canvas.fill(0xFF101520);
-                canvas.fillAngular(*sel_path,gfx_grad1,sel_wind,300,300,500,300,200);
+                canvas.fillAngular(*sel_path,gfx_grad1,sel_wind,380,350,500,300,200);
                 break;
             default: break;      
         }

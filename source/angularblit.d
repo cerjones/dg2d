@@ -24,13 +24,12 @@ struct AngularBlit
         assert((stride & 3) == 0);             // stride must be 16 byte alligned
         assert(height > 0);
         assert(g !is null);
-        assert(isPow2(g.lutLength));
+        assert(isPow2(g.lookupLength));
 
         this.pixels = pixels;
         this.stride = stride;
         this.height = height;
         this.gradient = g;
-        int lutsize = g.lutLength;
 
         xctr = x0;
         yctr = y0;
@@ -38,11 +37,11 @@ struct AngularBlit
         float h = y1-y0;
         float hyp = w*w + h*h;
         if (hyp < 0.1) hyp = 0.1;
-        xstep0 = lutsize * w / hyp; 
-        ystep0 = lutsize * h / hyp;
+        xstep0 = w / hyp;
+        ystep0 = h / hyp;
         hyp = sqrt(hyp);
-        xstep1 = lutsize * h / (r2*hyp);
-        ystep1 = lutsize * -w / (r2*hyp); 
+        xstep1 = h / (r2*hyp);
+        ystep1 = -w / (r2*hyp); 
     }
 
     Blitter getBlitter(WindingRule wr)
@@ -75,7 +74,7 @@ private:
         uint* dest = &pixels[y*stride];
         __m128i xmWinding = 0;
         uint* lut = gradient.getLookup.ptr;
-        uint lutmsk = gradient.lutLength - 1;
+        uint lutmsk = gradient.lookupLength - 1;
         bool isopaque = false;//gradient.isOpaque
 
         // XMM constants
@@ -83,6 +82,11 @@ private:
         immutable __m128i XMZERO = 0;
         immutable __m128i XMFFFF = [0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF];
         immutable __m128i XMMSK16 = [0xFFFF,0xFFFF,0xFFFF,0xFFFF];
+
+        // lutshr is used to scale the angle down to the LUT length
+
+        __m128i lutshr;
+        lutshr[0] = 24 - highestSetBit(gradient.lookupLength)-7;
 
         // paint variables
 
@@ -141,9 +145,10 @@ private:
                     while (ptr < end)
                     {
                         __m128 grad = gradOfSorts(xmT0,xmT1);
-                        __m128 poly = polyAprox(grad);
+                        __m128 poly = polyAprox(grad);// * XMSCALE;
                         __m128i ipos = _mm_cvtps_epi32(poly);
                         ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                        ipos = _mm_srl_epi32 (ipos, lutshr);
 
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
@@ -180,9 +185,10 @@ private:
                         __m128i d1 = _mm_loadu_si64 (ptr+2);
                         d1 = _mm_unpacklo_epi8 (d1, XMZERO);
 
-                        __m128 poly = polyAprox(grad);
+                        __m128 poly = polyAprox(grad);// * XMSCALE;
                         __m128i ipos = _mm_cvtps_epi32(poly);
                         ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                        ipos = _mm_srl_epi32 (ipos, lutshr);
 
                         long tlip = _mm_cvtsi128_si64 (ipos);
                         ipos = _mm_unpackhi_epi64 (ipos, ipos);
@@ -247,7 +253,7 @@ private:
                 xmWinding = _mm_shuffle_epi32!255(tqw);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
-                __m128 poly = polyAprox(grad);
+                __m128 poly = polyAprox(grad);// * XMSCALE;
 
                 // Process coverage values taking account of winding rule
                 
@@ -280,6 +286,7 @@ private:
                 d1 = _mm_unpacklo_epi8 (d1, XMZERO);
 
                 ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                ipos = _mm_srl_epi32 (ipos, lutshr);
 
                 xmT0 = xmT0 + xmStep0;
                 xmT1 = xmT1 + xmStep1;
@@ -346,6 +353,8 @@ private:
 
 // helpers for fast atan2
 // these should be inlined by ldc
+// split up into 3 seperate parts because its faster to spread them out
+// in the calling code. Breaks up the instruction dependency somewhat.
 
 private:
 
@@ -362,18 +371,16 @@ __m128 gradOfSorts(__m128 x, __m128 y)
     return diff / sum;
 }
 
-immutable __m128 PCOEF0  = [0.785398163f,0.785398163f,0.785398163f,0.785398163f];
-immutable __m128 PCOEF1  = [0.972394341f,0.972394341f,0.972394341f,0.972394341f];
-immutable __m128 PCOEF3  = [0.19194811f,0.19194811f,0.19194811f,0.19194811f];
-immutable __m128 PSCALE  = [128.0f / 3.142f,128.0f / 3.142f,128.0f / 3.142f,128.0f / 3.142f];
+immutable __m128 PCOEF0  = [2097151.9f,2097151.9f,2097151.9f,2097151.9f];
+immutable __m128 PCOEF1  = [2596464.8f,2596464.8f,2596464.8f,2596464.8f];
+immutable __m128 PCOEF3  = [512535.40f,512535.40f,512535.40f,512535.40f];
 
 __m128 polyAprox(__m128 g)
 {
     __m128 sqr = g*g;
     __m128 p3 = PCOEF3*g;
     __m128 p1 = PCOEF1*g;
-    __m128 poly = PCOEF0 - p1 + p3*sqr;
-    return poly * PSCALE;
+    return PCOEF0 - p1 + p3*sqr;
 }
 
 __m128i fixupQuadrant(__m128i ipos, __m128 t0, __m128 t1)
@@ -381,20 +388,7 @@ __m128i fixupQuadrant(__m128i ipos, __m128 t0, __m128 t1)
     __m128i xmsk = _mm_srai_epi32(cast(__m128i)t1,31);
     __m128i ymsk = _mm_srai_epi32(cast(__m128i)t0,31);
     ipos = ipos ^ (xmsk ^ ymsk);
-    return ipos ^ _mm_slli_epi32(ymsk,7);
+    return ipos ^ _mm_slli_epi32(ymsk,23); // equivelant to adding (2^15) if ymsk > 0 
 }
 
-// test mixing in rather than inlining???
-
-/*
-string gradOfSorts(string res, string x, string y)
-{
-    return 
-        "{ __m128 absx = _mm_and_ps("~x~", ABSMASK);" ~
-        "__m128 absy = _mm_and_ps(y, ABSMASK);"
-        "__m128 sum = _mm_add_ps(absx,absy);"
-        "__m128 diff = _mm_sub_ps(absx,absy);"
-        "sum = _mm_max_ps(sum,MINSUM);"
-        res ~ " = diff / sum;"
-}*/
 

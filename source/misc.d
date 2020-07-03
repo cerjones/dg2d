@@ -94,6 +94,14 @@ bool isPow2(int x)
     return ! ((x - 1) & x);
 }
 
+// get highest set bit
+
+int highestSetBit(uint x)
+{
+    assert(x != 0);
+    return 31-intr_bsf(x, true);
+}
+
 // is float or double,
 
 enum bool isFloatOrDouble(T) = (is(T == float) || is(T == double));
@@ -440,7 +448,7 @@ T* dg2dRealloc(T)(T* ptr, size_t length)
     if (ptr == null) assert(0); // Alloc failed abandon ship!
     return ptr;
 }
-/*
+
 T* dg2dMalloc(T)(size_t length = 1)
 {
     import core.stdc.stdlib : malloc;
@@ -449,9 +457,10 @@ T* dg2dMalloc(T)(size_t length = 1)
     if (ptr == null) assert(0); // Alloc failed abandon ship!
     return ptr;
 }
-*/
+
 void dg2dFree(void* ptr)
 {
     import core.stdc.stdlib : free;
     free(ptr);
 }
+

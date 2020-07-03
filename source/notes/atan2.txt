@@ -81,6 +81,20 @@ then we can flip the sign of 'a' thus..
 
 a = a ^ (xmsk ^ ymsk)
 
-and we can add the PI term thus
+and if we are working with a power of 2 mapping for the angle we add the PI term by flipping the topmost bit, IE if angle 0..360 maps to 0..256, then PI = 128, so 
 
-a = a ^ (xmsk << 8)
+a = a ^ (xmsk << 7)
+
+is equivelant to... if (xmsk) a += 128;
+
+================================================
+
+applying this to variable lookup table sizes
+
+1. only consider power of two sizes
+2. adjust the above code to output angle in range 0..0x1000000
+3. use righthand shift to get smaller LUT sizes
+
+So scale polynomial by 0x1000000, then after flipping to get all for quadrants we have a 24 bit index, we can shift that to whatever we want, has enough range to allow for option to have multiple repeats of gradient in full 360 degress.
+
+

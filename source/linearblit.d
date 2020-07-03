@@ -24,13 +24,13 @@ struct LinearBlit
         assert((stride & 3) == 0);             // stride must be 16 byte alligned
         assert(height > 0);
         assert(g !is null);
-        assert(isPow2(g.lutLength));
+        assert(isPow2(g.lookupLength));
 
         this.pixels = pixels;
         this.stride = stride;
         this.height = height;
         this.gradient = g;
-        int lutsize = g.lutLength;
+        int lutsize = g.lookupLength;
 
         xctr = x0;
         yctr = y0;
@@ -73,7 +73,7 @@ private:
         uint* dest = &pixels[y*stride];
         __m128i xmWinding = 0;
         uint* lut = gradient.getLookup.ptr;
-        uint lutmsk = gradient.lutLength - 1;
+        uint lutmsk = gradient.lookupLength - 1;
         bool isopaque = false;//gradient.isOpaque
 
         // XMM constants
