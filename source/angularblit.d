@@ -85,8 +85,7 @@ private:
 
         // lutshr is used to scale the angle down to the LUT length
 
-        __m128i lutshr;
-        lutshr[0] = 24 - highestSetBit(gradient.lookupLength)-7;
+        __m128 lutscale = _mm_set1_ps(gradient.lookupLength);
 
         // paint variables
 
@@ -145,10 +144,11 @@ private:
                     while (ptr < end)
                     {
                         __m128 grad = gradOfSorts(xmT0,xmT1);
-                        __m128 poly = polyAprox(grad);// * XMSCALE;
+                        __m128 poly = polyAprox(grad);
+                        poly = fixupQuadrant2(poly,xmT0,xmT1)*lutscale;
                         __m128i ipos = _mm_cvtps_epi32(poly);
-                        ipos = fixupQuadrant(ipos,xmT0,xmT1);
-                        ipos = _mm_srl_epi32 (ipos, lutshr);
+                        //ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                        //ipos = _mm_srl_epi32 (ipos, lutshr);
 
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
@@ -185,10 +185,11 @@ private:
                         __m128i d1 = _mm_loadu_si64 (ptr+2);
                         d1 = _mm_unpacklo_epi8 (d1, XMZERO);
 
-                        __m128 poly = polyAprox(grad);// * XMSCALE;
+                        __m128 poly = polyAprox(grad);
+                        poly = fixupQuadrant2(poly,xmT0,xmT1)*lutscale;
                         __m128i ipos = _mm_cvtps_epi32(poly);
-                        ipos = fixupQuadrant(ipos,xmT0,xmT1);
-                        ipos = _mm_srl_epi32 (ipos, lutshr);
+                        //ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                        //ipos = _mm_srl_epi32 (ipos, lutshr);
 
                         long tlip = _mm_cvtsi128_si64 (ipos);
                         ipos = _mm_unpackhi_epi64 (ipos, ipos);
@@ -253,7 +254,8 @@ private:
                 xmWinding = _mm_shuffle_epi32!255(tqw);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
-                __m128 poly = polyAprox(grad);// * XMSCALE;
+                __m128 poly = polyAprox(grad);
+                poly = fixupQuadrant2(poly,xmT0,xmT1)*lutscale;
 
                 // Process coverage values taking account of winding rule
                 
@@ -285,8 +287,8 @@ private:
                 __m128i d1 = _mm_loadu_si64 (ptr+2);
                 d1 = _mm_unpacklo_epi8 (d1, XMZERO);
 
-                ipos = fixupQuadrant(ipos,xmT0,xmT1);
-                ipos = _mm_srl_epi32 (ipos, lutshr);
+                //ipos = fixupQuadrant(ipos,xmT0,xmT1);
+                //ipos = _mm_srl_epi32 (ipos, lutshr);
 
                 xmT0 = xmT0 + xmStep0;
                 xmT1 = xmT1 + xmStep1;
@@ -359,7 +361,9 @@ private:
 private:
 
 immutable __m128i ABSMASK = [0x7fffffff,0x7fffffff,0x7fffffff,0x7fffffff];
+immutable __m128i SGNMASK = [0x80000000,0x80000000,0x80000000,0x80000000];
 immutable __m128 MINSUM = [0.001,0.001,0.001,0.001];
+immutable __m128 FQTWO = [0.5,0.5,0.5,0.5];
 
 __m128 gradOfSorts(__m128 x, __m128 y)
 {
@@ -371,9 +375,9 @@ __m128 gradOfSorts(__m128 x, __m128 y)
     return diff / sum;
 }
 
-immutable __m128 PCOEF0  = [2097151.9f,2097151.9f,2097151.9f,2097151.9f];
-immutable __m128 PCOEF1  = [2596464.8f,2596464.8f,2596464.8f,2596464.8f];
-immutable __m128 PCOEF3  = [512535.40f,512535.40f,512535.40f,512535.40f];
+immutable __m128 PCOEF0  = [0.125f,0.125f,0.125f,0.125f];
+immutable __m128 PCOEF1  = [0.15476136f,0.15476136f,0.15476136f,0.15476136f];
+immutable __m128 PCOEF3  = [0.030549490f,0.030549490f,0.030549490f,0.030549490f];
 
 __m128 polyAprox(__m128 g)
 {
@@ -391,4 +395,12 @@ __m128i fixupQuadrant(__m128i ipos, __m128 t0, __m128 t1)
     return ipos ^ _mm_slli_epi32(ymsk,23); // equivelant to adding (2^15) if ymsk > 0 
 }
 
+__m128 fixupQuadrant2(__m128 pos, __m128 t0, __m128 t1)
+{
+    pos = cast(__m128i) pos ^ ((cast(__m128i) t0 ^ cast(__m128i) t1) & SGNMASK);
+    return pos + cast(__m128) (_mm_srai_epi32(cast(__m128i)t0,31) & cast(__m128i) FQTWO);
+}
 
+
+// even odd 314 - 413
+// non zero 236 -- 312

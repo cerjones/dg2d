@@ -15,8 +15,8 @@ import dg2d.misc;
 /**
   Gradient class, 
   The gradient is defined as a list of colours and positions (known as stops) along
-  a single dimension from 0 to 1. 
-  It has a has a lookup table for the rasterizer
+  a single dimension from 0 to 1. This is rendered into a lookup table for the
+  rasterizer. You can choose the lookup table size.
 
   When you add a colour via addStop it's opacity is checked so that the
   rasterizer can know whether the gradient is fully opaque or not. its much

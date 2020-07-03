@@ -116,7 +116,8 @@ class GFXPanel : Widget
 //		import ldc.intrinsics;
 		import core.sys.windows.windows;
 		import std.conv;
-
+        
+        tmpcvs.resetView();
         tmpcvs.fill(0xff274634);
 
 //        long t = readcyclecounter();
