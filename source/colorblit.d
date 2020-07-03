@@ -62,8 +62,8 @@ private:
         // XMM constants
 
         immutable __m128i XMZERO = 0;
-        immutable __m128i XMFFFF = [0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF];
-        immutable __m128i XMMSK16 = [0xFFFF,0xFFFF,0xFFFF,0xFFFF];
+        immutable __m128i XMFFFF = 0xFFFFFFFF;
+        immutable __m128i XMMSK16 = 0xFFFF;
 
         // paint variables
 

@@ -74,13 +74,12 @@ private:
         __m128i xmWinding = 0;
         uint* lut = gradient.getLookup.ptr;
         uint lutmsk = gradient.lookupLength - 1;
-        bool isopaque = false;//gradient.isOpaque
 
         // XMM constants
 
         immutable __m128i XMZERO = 0;
-        immutable __m128i XMFFFF = [0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF];
-        immutable __m128i XMMSK16 = [0xFFFF,0xFFFF,0xFFFF,0xFFFF];
+        immutable __m128i XMFFFF = 0xFFFFFFFF;
+        immutable __m128i XMMSK16 = 0xFFFF;
 
         // paint variables
 
@@ -125,7 +124,7 @@ private:
 
                 // Or fill span with soid color
 
-                else if (isopaque && (cover > 0xFF00))
+                else if (gradient.isOpaque && (cover > 0xFF00))
                 {
                     uint* ptr = &dest[bpos*4];
                     uint* end = ptr + ((nsb-bpos)*4);

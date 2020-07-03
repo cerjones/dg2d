@@ -94,14 +94,6 @@ bool isPow2(int x)
     return ! ((x - 1) & x);
 }
 
-// get highest set bit
-
-int highestSetBit(uint x)
-{
-    assert(x != 0);
-    return 31-intr_bsf(x, true);
-}
-
 // is float or double,
 
 enum bool isFloatOrDouble(T) = (is(T == float) || is(T == double));

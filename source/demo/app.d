@@ -242,7 +242,7 @@ static this()
     gfx_text_s = buildTextPath(gfx_font,loremIpsum);
 
     gfx_grad1 = new Gradient;
-    gfx_grad1.addStop(0,0xFFFF0000).addStop(0.33,0xff00FF00).addStop(0.66,0xFF0000FF).addStop(1.0,0xFFFF0000);
+    gfx_grad1.addStop(0,0xffFF0000).addStop(0.33,0xff00FF00).addStop(0.66,0xFF0000FF).addStop(1.0,0xFFFF0000);
     gfx_grad2 = new Gradient;
     gfx_grad2.addStop(0,0xFFa72ac6).addStop(0.5,0x00004092).addStop(0.95,0xFFb0ae00).addStop(1,0xFFa72ac6);
 }

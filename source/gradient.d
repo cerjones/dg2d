@@ -25,6 +25,8 @@ import dg2d.misc;
 
 class Gradient
 {
+    //@disable this(this);
+
     // colour is 32 bit ARGB, pos runs from 0..1 
 
     struct ColorStop
@@ -33,7 +35,7 @@ class Gradient
         float pos;
     }
 
-    this(int lookupLength = 32)
+    this(int lookupLength = 256)
     {
         setLookupLength(lookupLength);
     }

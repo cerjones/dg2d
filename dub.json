@@ -15,6 +15,9 @@
 			"buildOptions": ["releaseMode", "optimize", "inline"],
 			"dflags": ["-O3","-flto=full"]
 	  	},
+          "releasedmd": {
+			"buildOptions": ["releaseMode", "optimize", "inline"],
+	  	},
 	},
 
 	"dependencies": {

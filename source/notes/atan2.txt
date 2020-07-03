@@ -18,15 +18,19 @@ g = (x-y)/(x+y)
 
 As x and y are always positive g will always be in the range -1..1
 
-In order to avoid posible divide by zero we modify to...
+In order to avoid posible divide by zero we limit the denominator...
 
 g = (x-y) / max((x+y),0.001)
 
-As the coordinates are pixel coordinates the 0.001 is 1/1000 pixel error for the absolute center of the gradient, which is irrelevant.
+If x,y are pixel coordinates the 0.001 is 1/1000 pixel error for the absolute center of the gradient, which is irrelevant.
 
 We then use a cubic aproximation to map 'g' to the angle. I used curve fitting based on limiting the maximum absolute error to generate the polynomial, max error was 0.315% or 0.28 degrees. Also the even powers in the polynominal tended towards zero so it converged on...
 
 angle = 0.19194811*q^3 - 0.972394341*q + 0.785398163;
+
+and if we want the full circle to map to the range 0..1 rather that 0..2PI, we can use this...
+
+angle = 0.0305494905*q^3 - 0.154761366*q + 0.125;
 
 given (y,x) 
 
@@ -37,64 +41,35 @@ given (y,x)
 
 Now we consider how the sign of x,y maps the angle in the first quadrant to the other quadrants...
 
-x y => actual angle...
-+ + => a
-- + => PI-a
-+ - => 2PI-a
-- - => PI+a
+quadrant denoted [signx,signy], so [-+] is top left
 
-Can be done like this...
+[++] : => a
+[-+] : => PI-a
+[--] : => PI+a
+[+-] : => 2PI-a
 
-i) if (sign(x) != sign(y)) angle = -angle;
-ii) if (x < 0) angle += PI
+So
 
-note: We can ignore the 2PI term as the angle will masked to modulus 2PI anyway.
+if (sign(x) != sign(y)) a = -a;
+if (sign(x)) a += PI
 
-We can use bitwise ops on the input floats to do i)
+The angle is modulus 2PI anyway so the 2PI term in [+-] is irrelevant
 
-uint s = (x ^ y) & 0x80000000
-angle = angle | s;
+Can be done in float thus...
 
-the second part ii) can be done in integer
+a = a ^ ((x ^ y) & SGNBIT);
+a = a + (x sar 31) & PI)
 
-uint o = (x & 0x80000000) >> 22
-angle += o;
+We xor the sign bits of X and Y, then we mask that sign bit and XOR that with A.
+Then we make a bit mask from the sign bit of X, and use that to conditionaly add PI.
 
-Basically PI maps to half the length of the lookup table so we mask and shift the sign bit into that position so we can conditionaly add based on the sign of x
+can be done in int with
 
-======
-
-The 2PI term can be ignored as it's all modulus 2PI anyway
-
-x y => actual angle...
-+ + => a
-- + => PI-a
-+ - => -a
-- - => PI+a
-
-So if we convert sign bits into two masks...
-
-xmsk = x sar 31
-ymsk = y sar 31
-
-then we can flip the sign of 'a' thus..
-
+xmsk = X sar 31
+ymsk = Y sar 31
 a = a ^ (xmsk ^ ymsk)
+a += (xmsk & whatevet_bit_for_PI)
 
-and if we are working with a power of 2 mapping for the angle we add the PI term by flipping the topmost bit, IE if angle 0..360 maps to 0..256, then PI = 128, so 
-
-a = a ^ (xmsk << 7)
-
-is equivelant to... if (xmsk) a += 128;
-
-================================================
-
-applying this to variable lookup table sizes
-
-1. only consider power of two sizes
-2. adjust the above code to output angle in range 0..0x1000000
-3. use righthand shift to get smaller LUT sizes
-
-So scale polynomial by 0x1000000, then after flipping to get all for quadrants we have a 24 bit index, we can shift that to whatever we want, has enough range to allow for option to have multiple repeats of gradient in full 360 degress.
-
+Make a bit mask from the sign bits of X and Y, XOR them and it that to flip all the bits in a
+then use the sign mask from X conditionaly add the equivelant of PI
 

@@ -52,9 +52,6 @@ import std.traits;
 /*
    Winding rule
    Gradient repeat mode
-   Angular gradient mode
-
-   (repeat modes not implemented yet)
 */
 
 enum WindingRule
@@ -65,16 +62,9 @@ enum WindingRule
 
 enum RepeatMode
 {
-    Pad,
-    Repeat,
-    Mirror
-}
-
-enum AngularMode
-{
-    Single,
-    Double,
-    Quad
+    Pad,     // final colour pads area past the ends of the gradient
+    Repeat,  // gradient repeats ad nausium, oops I mean ad infinitum
+    Mirror   // as above but alternate repeats are mirrored
 }
 
 /*
