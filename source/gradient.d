@@ -1,7 +1,5 @@
 /**
-  This module provides colour gradient funcitonality. The colour gradient
-  is just the array of colours and positions along a linear dimension. The
-  actual mapping to 2D space is seperate from this.
+  This module contains the colour gradient class.  
 
   Copyright: Chris Jones
   License: Boost Software License, Version 1.0
@@ -13,14 +11,11 @@ module dg2d.gradient;
 import dg2d.misc;
 
 /**
-  Gradient class, 
-  The gradient is defined as a list of colours and positions (known as stops) along
-  a single dimension from 0 to 1. This is rendered into a lookup table for the
-  rasterizer. You can choose the lookup table size.
-
-  When you add a colour via addStop it's opacity is checked so that the
-  rasterizer can know whether the gradient is fully opaque or not. its much
-  faster to draw fully opaque gradients, so helps with optimization.
+  Colour Gradient class. 
+  
+  The colour gradient is defined by a list of colour stops where each stop specifies
+  the colour at a given position along the gradient axis. It maintains a lookup
+  table that is used by the rasterizer.
 */
 
 class Gradient
@@ -29,16 +24,24 @@ class Gradient
 
     // colour is 32 bit ARGB, pos runs from 0..1 
 
+private:
+
     struct ColorStop
     {
         uint  color;
         float pos;
     }
 
+public:
+
+    /** Create an empty colour gradient, you can specify the size of the lookuptable */    
+
     this(int lookupLength = 256)
     {
         setLookupLength(lookupLength);
     }
+
+    /** destructor */
 
     ~this()
     {
@@ -46,15 +49,14 @@ class Gradient
         dg2dFree(m_lookup);
     }
 
+    /** How many colour stops are there? */
+
     uint length()
     {
         return m_stopsLength;
     }
 
-    bool hasChanged()
-    {
-        return m_changed;
-    }
+    /** reset the list of gradient colour stops to empty */
 
     void reset()
     {
@@ -63,7 +65,8 @@ class Gradient
         m_isOpaque = true;
     }
 
-    /** get lookup table */
+    /** get lookup table, this can cause the lookup table to be recomputed if anything
+    significant has changed. */
 
     uint[] getLookup()
     {
@@ -78,19 +81,18 @@ class Gradient
         return m_lookupLength;
     }
 
-    /** change lookup table length */
+    /** change lookup table length (8192 max) */
 
     void setLookupLength(int len)
     {
         if (m_lookupLength == len) return;
-        assert(len <= 8192); // check people being sensible
-        len = roundUpPow2(max(2,len));
+        len = roundUpPow2(clip(len,2,8192));
         m_lookup = dg2dRealloc(m_lookup, len);
         m_lookupLength = len;
         m_changed = true;
     }
 
-    /** add a color stop */
+    /** add a color stop, pos will be cliped to 0..1 */
 
     Gradient addStop(float pos, uint color)
     {
@@ -116,9 +118,6 @@ class Gradient
     }
 
 private:
-    
-    // fixed size lookup for now, could probably have lookup tables cached
-    // by the rasterizer rather than stuck in here/
 
     void initLookup()
     {       
@@ -158,9 +157,8 @@ private:
     uint* m_lookup;
     uint m_lookupLength;
     bool m_changed;
-    bool m_isOpaque;
+    bool m_isOpaque = true;
 }
-
 
 // Fill an array of uints with a linearly interpolated color gradient
 

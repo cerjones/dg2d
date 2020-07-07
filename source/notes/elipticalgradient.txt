@@ -1,47 +1,25 @@
 Eliptical gradient
 ==================
 
-There are a few ways to define an elipse but i've chosen to define it as a center point and two radiuses at right angles to each other. The first radius is defined with a coordinate, the second radius only needs a length as it will be at 90 degress to the first radius.
+There are a few ways to define an elipse but having thought about it I think it is most useful to have a general method that takes three points,
 
-center point, (x0,y0)
-first radius coordinates, (x1,y1)
-second radius length, r1
+the center of the elipse
+the location of 0 degrees for the elipse
+the location of 90 degrees for the elipse
 
-If we take what we worked out in paintmap.txt we have this for the first axis...
+This allows mapping any linear transform to be supported. 
 
-w0 = x1-x0
-h0 = y1-y0
-stepx0 = w0 / (w0^2 + h0^2) 
-stepy0 = h0 / (w0^2 + h0^2) 
-t0 = (x2-x0)*stepx0 + (y2-y0)*stepy0
+Other ways to define the elipse can be built on top of this. If somebody wants a circle, a center point and radius can easily be converted into three points for example.
 
-here x2,y2 is the point we are evaluating for 't'
+so we have
 
-All we need to do to get the equations for the second axis is rotate stepx0,stepy0 by 90 degrees and scale by r0/r1 so we get this...
+center : (x0,y0)
+axis0 : (x1,y1)
+axis1 : (x2,y2)
 
-stepx1 = -stepy0 * r0/r1
-stepy1 = stepx0 * r0/r1
+We can calculate t0 and t1 as described in paintmap.txt
 
-which expands to this...
-
-stepx1 = -h0*r0 / (w0^2 + h0^2)*r1
-stepy1 = w0*r0 / (w0^2 + h0^2)*r1
-
-and since...
-
-r0 = sqrt(w0^2+h0^2)
-
-stepx1 = -h0*sqrt(w0^2 + h0^2) / (w0^2 + h0^2)*r2
-stepy1 = w0*sqrt(w0^2 + h0^2) / (w0^2 + h0^2)*r2
-
-and because sqrt(a)/a == 1/sqrt(a)
-
-stepx1 = h0 / r2*sqrt(w0^2+h0^2)
-stepy1 = -w0 / r2*sqrt(w0^2+h0^2)
-
-t1 = (x2-x0)*stepx1 + (y2-y0)*stepy1
-
-So now we have what we need to evaluate t0 and t1, for any point (x2,y2) from which you can evaluate the radius or angle for the elipse...
+from which you can evaluate the radius or angle for the elipse...
 
 r = sqrt(t0^2+t1^2)
 
@@ -49,69 +27,36 @@ or the angle
 
 a = atan2(t1,t0)
 
+So a a circle can be define with a center point and a radius
+
+circle = x0,y1,r
+
+which becomes...
+
+p0 = x0,y0
+p1 = x0+r,y0
+p2 = x0,y0+r
+
+an elipse can be deined with a center point, and edge point and an aspect ratio
+
+elipse = x0,y0,x1,y1,r
+
+dx = x1-x0
+dy = y1-y0
+p0 = x0,y0
+p1 = x1,y1
+p2 = x0-dy*r,y0+dx*r
+
+you could also define the aspect ratio as radius length "rlen" at right angles to p0-->p1
+
+dx = x1-x0
+dy = y1-y0
+r = rlen / sqrt(dx^2+dy^2)
+p0 = x0,y0
+p1 = x1,y1
+p2 = x0-dy*r,y0+dx*r
 
 
 
 
-
-
-
-then first radius length, r0 = sqrt(w0^2+h0^2)
-
-If we rotate (x0,y0)-->(x1,y1) by 90 degrees, and scale by r1/r0 we get
-
-w1 = -h0*r1/r0
-h1 = w0*r1/r0
-
-
-Instead of evaluating the coordinates that define the second axis we can simply rotate the steps for the first axis by 90 degrees and scale by r0/r1
-
-
-We want to evaluate the gradient for the point (x3,y3). We can do this by considering each axis independently as a linear gradient along that axis. So if we evaluate (x3,y3) as if we we are working with a linear gradient from (x0,y0)-->(x1,y1) we get a value for 't' along that axis. And likewise we do the same along the (x0,y0)-->(x2,y2) axis, and we get 't1' and 't2', for the radiuses r1 and r2. We use the equations worked out for linear gradients thus...
-
-w1 = (x1-x0)
-h1 = (y1-y0)
-
-stepx1 = w1 / (w1^2 + h1^2) 
-stepy1 = h1 / (w1^2 + h1^2) 
-
-t1 = (x3-x0)*stepx1 + (y3-y0)*stepy1
-
-second radius
-=============
-
-To get steps for radius2 two we start with steps for radius1, rotate by 90 degrees and scale by r1/r2, so...
-
-stepx2 = stepy1 * r1/r2
-stepy2 = -stepx1 * r1/r2
-
-which expands to this...
-
-stepx2 = h1*r1 / (w1^2 + h1^2)*r2
-stepy2 = -w1*r1 / (w1^2 + h1^2)*r2
-
-and since...
-
-r1 = sqrt(w1^2+h1^2)
-
-stepx2 = h1*sqrt(w1^2+h1^2) / (w1^2 + h1^2)*r2
-stepy2 = -w1*sqrt(w1^2+h1^2) / (w1^2 + h1^2)*r2
-
-and because sqrt(a)/a == 1/sqrt(a)
-
-stepx2 = h1 / r2*sqrt(w1^2+h1^2)
-stepy2 = -w1 / r2*sqrt(w1^2+h1^2)
-
-t2 = (x3-x0)*stepx2 + (y3-y0)*stepy2
-
-So you now have t1 and t2, from which you can evaluate the radius length with...
-
-r = sqrt(t1^2+t2^2)
-
-or the angle
-
-a = atan2(t2,t1)
-
-Cirular gradient
-================
 

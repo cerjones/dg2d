@@ -7,3 +7,5 @@ dub.selections.json
 mixins.txt
 todo.txt
 *.sln
+docs/
+docs.json

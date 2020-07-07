@@ -67,7 +67,7 @@ class GFXPanel : Widget
                 break;
             case 1:
                 canvas.fill(0xFF101520);
-                canvas.fillLinear(*sel_path,gfx_grad1,sel_wind,50,50,720,720);
+                canvas.fillLinear(*sel_path,gfx_grad1,sel_wind,400,400,450,450);
                 break;
             case 2:
                 canvas.fill(0xFF101520);
@@ -75,7 +75,7 @@ class GFXPanel : Widget
                 break;
             case 3:
                 canvas.fill(0xFF101520);
-                canvas.fillAngular(*sel_path,gfx_grad1,sel_wind,380,350,500,300,200);
+                canvas.fillAngular(*sel_path,gfx_grad1,sel_wind,380,350,500,350,120);
                 break;
             default: break;      
         }
@@ -127,9 +127,9 @@ class GFXPanel : Widget
         switch(fillidx % 4)
         {
             case 0: tmpcvs.fill(*sel_path,0xFFFFFFFF,sel_wind); break;
-            case 1: tmpcvs.fillLinear(*sel_path,gfx_grad1,sel_wind,50,50,720,720); break;
+            case 1: tmpcvs.fillLinear(*sel_path,gfx_grad1,sel_wind,300,300,500,500); break;
             case 2: tmpcvs.fillRadial(*sel_path,gfx_grad2,sel_wind,400,400,500,700,150); break;
-            case 3: tmpcvs.fillAngular(*sel_path,gfx_grad1,sel_wind,400,400,500,300,200); break;
+            case 3: tmpcvs.fillAngular(*sel_path,gfx_grad1,sel_wind,400,400,500,400,200); break;
             default: break;      
         }
 

@@ -110,9 +110,9 @@ class Canvas
         m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
         m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
-        ColorBlit cb;
-        cb.init(m_pixels,m_stride,m_height,color);
-        m_rasterizer.rasterize(cb.getBlitter(wr));
+        auto cblit = ColorBlit(m_pixels,m_stride,m_height);
+        cblit.setColor(color);
+        m_rasterizer.rasterize(cblit.getBlitFunc(wr));
     }
 
     void fillLinear(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
@@ -130,9 +130,10 @@ class Canvas
         m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
         m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
-        LinearBlit lb;
-        lb.init(m_pixels, m_stride, m_height, grad, x0, y0, x1, y1);
-        m_rasterizer.rasterize(lb.getBlitter(wr));
+        auto lblit = LinearBlit(m_pixels, m_stride, m_height);
+        lblit.setPaint(grad, wr, RepeatMode.Pad);
+        lblit.setCoords(x0, y0, x1, y1);
+        m_rasterizer.rasterize(lblit.getBlitFunc);
     }
 
     void fillRadial(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
@@ -150,9 +151,10 @@ class Canvas
         m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
         m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
-        RadialBlit rb;
-        rb.init(m_pixels,m_stride,m_height,&grad,x0,y0,x1,y1,r);
-        m_rasterizer.rasterize(rb.getBlitter(wr));
+        auto rblit = RadialBlit(m_pixels,m_stride,m_height);
+        rblit.setPaint(grad, wr, RepeatMode.Mirror);
+        rblit.setCoords(x0,y0,x1,y1,r);
+        m_rasterizer.rasterize(rblit.getBlitFunc);
     }
 
 
@@ -171,9 +173,10 @@ class Canvas
         m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
         m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
-        AngularBlit ab;
-        ab.init(m_pixels,m_stride,m_height,grad,x0,y0,x1,y1,r2);
-        m_rasterizer.rasterize(ab.getBlitter(wr));
+        auto ablit = AngularBlit(m_pixels,m_stride,m_height);
+        ablit.setPaint(grad, wr, RepeatMode.Mirror, 4.0f);
+        ablit.setCoords(x0,y0,x1,y1,r2);
+        m_rasterizer.rasterize(ablit.getBlitFunc);
     }
 
     void roundRect(float x, float y, float w, float h, float r, uint color)
@@ -199,9 +202,9 @@ class Canvas
         m_rasterizer.lineTo(x,y+r);
         m_rasterizer.cubicTo(x,y+lpc,  x+lpc,y,  x+r,y);
 
-        ColorBlit cb;
-        cb.init(m_pixels,m_stride,m_height,color);
-        m_rasterizer.rasterize(cb.getBlitter(WindingRule.NonZero));
+        auto cblit = ColorBlit(m_pixels,m_stride,m_height);
+        cblit.setColor(color);
+        m_rasterizer.rasterize(cblit.getBlitFunc(WindingRule.NonZero));
     }
 
     void drawText(float x, float y, string txt, Font font, uint color)

@@ -46,7 +46,7 @@ t*h*h + t*w*w = (y2 - y0)*h - (x0 - x2)*w
 t(h^2 + w^2) =  (y2 - y0)*h - (x0 - x2)*w
 t = ((y2 - y0)*h + (x2 - x0)*w) / (h^2 + w^2)
 
-So we have a way to evalute 't' for any point. We can split that equation up and pull some stuff out that can be precomputed and it also makes the equation a bit more intuative...
+So we have a way to evalute 't' for any point. We can split that equation up and pull some stuff out that can be precomputed and it makes a bit more intuative / useful for what we need...
 
 stepx = w / (w^2 + h^2) 
 stepy = h / (w^2 + h^2) 
@@ -61,7 +61,7 @@ For this you just define two axes and calculate 't' seprately for each. So...
 axis 0 : (x0,y0) --> (x1,y1)
 axis 1 : (x0,y0) --> (x2,y2)
 
-Probably? you want the two axes to be at right angles and to share (x0,y0) but as far as I know there's no reason they have to do that.
+Probably you want the two axes to be at right angles and to share (x0,y0) but there's no reason they have to do that.
 
 w0 = x1-x0
 h0 = y1-y0

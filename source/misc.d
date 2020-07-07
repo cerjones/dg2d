@@ -124,25 +124,6 @@ ubyte[] loadFileMalloc(string filename)
 }
 
 /*
-  broadcast alpha
-
-  x is [A2,R2,G2,B2,A1,R1,G1,B1], 16 bit components with lower 8 bits used
-  returns [A2,A2,A2,A2,A1,A1,A1,A1], 16 bits used
-  two versions, shuffleVector should lower to pshufb, but it is a bit slower on
-  my CPU, maybe from increased register pressure?
-*/
-
-__m128i _mm_broadcast_alpha(__m128i x)
-{
-    x = _mm_shufflelo_epi16!255(x);
-    x = _mm_shufflehi_epi16!255(x);
-    return _mm_slli_epi16(x,8);
-//    return  cast(__m128i)
-//        shufflevector!(byte16, 7,6,7,6,7,6,7,6,  15,14,15,14,15,14,15,14)
-//            (cast(byte16)a, cast(byte16)a);
-}
-
-/*
   nextSetBit, searches the bit mask for the next set bit. 
 
   mask  - array that holds the bits

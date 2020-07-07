@@ -10,56 +10,75 @@ module dg2d.radialblit;
 import dg2d.rasterizer;
 import dg2d.gradient;
 import dg2d.misc;
+import dg2d.blitex;
 
 /*
   radial gradient blit
 */
 
 struct RadialBlit
-{   
-    void init(uint* pixels, int stride, int height,
-              Gradient* g, float x0, float y0, float x1, float y1, float r2)
+{
+    this(uint* pixels, int stride, int height)
     {
-        assert(((cast(int)pixels) & 15) == 0); // must be 16 byte alligned
-        assert((stride & 3) == 0);             // stride must be 16 byte alligned
+        assert(((cast(uint)pixels) & 15) == 0); // must be 16 byte aligned
+        assert((stride & 3) == 0);              // stride must be 16 byte aligned
         assert(height > 0);
-        assert(g !is null);
-        assert(isPow2(g.lookupLength));
-
         this.pixels = pixels;
         this.stride = stride;
         this.height = height;
-        this.gradient = g;
-        int lutsize = g.lookupLength;
+    }
 
+    void setPaint(Gradient grad, WindingRule wrule, RepeatMode rmode)
+    {
+        assert(grad !is null);
+        assert(isPow2(gradient.lookupLength));
+        gradient = grad;
+        windingRule = wrule;
+        repeatMode = rmode;
+    }
+  
+    void setCoords(float x0, float y0, float x1, float y1, float r2)
+    {
         xctr = x0;
         yctr = y0;
         float w = x1-x0;
         float h = y1-y0;
         float hyp = w*w + h*h;
         if (hyp < 1.0) hyp = 1.0;
-        xstep0 = lutsize * w / hyp; 
-        ystep0 = lutsize * h / hyp;
+        xstep0 = gradient.lookupLength * w / hyp; 
+        ystep0 = gradient.lookupLength * h / hyp;
         hyp = sqrt(hyp);
-        xstep1 = lutsize * h / (r2*hyp);
-        ystep1 = lutsize * -w / (r2*hyp); 
+        xstep1 = gradient.lookupLength * h / (r2*hyp);
+        ystep1 = gradient.lookupLength * -w / (r2*hyp); 
     }
 
-    Blitter getBlitter(WindingRule wr)
+    Blitter getBlitFunc() return
     {
-        if (wr == WindingRule.NonZero)
+        if (windingRule == WindingRule.NonZero)
         {
-            return &radial_blit!(WindingRule.NonZero);
+            switch(repeatMode)
+            {
+                case RepeatMode.Pad: return &radial_blit!(WindingRule.NonZero,RepeatMode.Pad);
+                case RepeatMode.Repeat: return &radial_blit!(WindingRule.NonZero,RepeatMode.Repeat);
+                case RepeatMode.Mirror: return &radial_blit!(WindingRule.NonZero,RepeatMode.Mirror);
+                default: assert(0);
+            }
         }
         else
         {
-            return &radial_blit!(WindingRule.EvenOdd);
+            switch(repeatMode)
+            {
+                case RepeatMode.Pad: return &radial_blit!(WindingRule.EvenOdd,RepeatMode.Pad);
+                case RepeatMode.Repeat: return &radial_blit!(WindingRule.EvenOdd,RepeatMode.Repeat);
+                case RepeatMode.Mirror: return &radial_blit!(WindingRule.EvenOdd,RepeatMode.Mirror);
+                default: assert(0);
+            }
         }
     }
 
 private:
 
-    void radial_blit(WindingRule wr)(int* delta, DMWord* mask, int x0, int x1, int y)
+    void radial_blit(WindingRule wr, RepeatMode mode)(int* delta, DMWord* mask, int x0, int x1, int y)
     {
         assert(x0 >= 0);
         assert(x1 <= stride);
@@ -75,8 +94,8 @@ private:
         uint* dest = &pixels[y*stride];
         __m128i xmWinding = 0;
         uint* lut = gradient.getLookup.ptr;
-        uint lutmsk = gradient.lookupLength - 1;
-        bool isopaque = false;//
+        __m128i lutmsk = gradient.lookupLength - 1;
+        __m128i lutmsk2 = gradient.lookupLength*2 - 1;
 
         // XMM constants
 
@@ -145,14 +164,12 @@ private:
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
                         __m128i ipos = _mm_cvtps_epi32 (rad);
+                        ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
-                        long tlip = _mm_cvtsi128_si64 (ipos);
-                        ipos = _mm_shuffle_epi32!14(ipos);
-                        ptr[0] = lut[tlip & lutmsk];
-                        ptr[1] = lut[(tlip >> 32) & lutmsk];
-                        tlip = _mm_cvtsi128_si64 (ipos);
-                        ptr[2] = lut[tlip & lutmsk];
-                        ptr[3] = lut[(tlip >> 32) & lutmsk];
+                        ptr[0] = lut[ipos.array[0]];
+                        ptr[1] = lut[ipos.array[1]];
+                        ptr[2] = lut[ipos.array[2]];
+                        ptr[3] = lut[ipos.array[3]];
 
                         ptr+=4;                        
                     }
@@ -182,21 +199,17 @@ private:
                         d1 = _mm_unpacklo_epi8 (d1, XMZERO);
 
                         __m128i ipos = _mm_cvtps_epi32 (rad);
+                        ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
-                        long tlip = _mm_cvtsi128_si64 (ipos);
-                        ipos = _mm_unpackhi_epi64 (ipos, ipos);
-
-                        __m128i c0 = _mm_loadu_si32 (&lut[tlip & lutmsk]);
-                        __m128i tnc = _mm_loadu_si32 (&lut[(tlip >> 32) & lutmsk]);
+                        __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
+                        __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
                         c0 = _mm_unpacklo_epi32 (c0, tnc);
                         c0 = _mm_unpacklo_epi8 (c0, XMZERO);
                         __m128i a0 = _mm_broadcast_alpha(c0);
                         a0 = _mm_mulhi_epu16(a0, tqcvr);
-
-                        tlip = _mm_cvtsi128_si64 (ipos);
-                        
-                        __m128i c1 = _mm_loadu_si32 (&lut[tlip & lutmsk]);
-                        tnc = _mm_loadu_si32 (&lut[(tlip >> 32) & lutmsk]);
+                       
+                        __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
+                        tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
                         c1 = _mm_unpacklo_epi32 (c1, tnc);
                         c1 = _mm_unpacklo_epi8 (c1, XMZERO);
                         __m128i a1 = _mm_broadcast_alpha(c1);
@@ -278,24 +291,21 @@ private:
 
                 // load grad colors
 
-                long tlip = _mm_cvtsi128_si64 (ipos);
-                ipos = _mm_unpackhi_epi64 (ipos, ipos);
+                ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
                 tcvr = _mm_unpacklo_epi16 (tcvr, tcvr);
                 __m128i tcvr2 = _mm_unpackhi_epi32 (tcvr, tcvr);
                 tcvr = _mm_unpacklo_epi32 (tcvr, tcvr);
 
-                __m128i c0 = _mm_loadu_si32 (&lut[tlip & lutmsk]);
-                __m128i tnc = _mm_loadu_si32 (&lut[(tlip >> 32) & lutmsk]);
+                __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
+                __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
                 c0 = _mm_unpacklo_epi32 (c0, tnc);
                 c0 = _mm_unpacklo_epi8 (c0, XMZERO);
                 __m128i a0 = _mm_broadcast_alpha(c0);
                 a0 = _mm_mulhi_epu16(a0, tcvr);
 
-                tlip = _mm_cvtsi128_si64 (ipos);
-
-                __m128i c1 = _mm_loadu_si32 (&lut[tlip & lutmsk]);
-                tnc = _mm_loadu_si32 (&lut[(tlip >> 32) & lutmsk]);
+                __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
+                tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
                 c1 = _mm_unpacklo_epi32 (c1, tnc);
                 c1 = _mm_unpacklo_epi8 (c1, XMZERO);
                 __m128i a1 = _mm_broadcast_alpha(c1);
@@ -327,12 +337,14 @@ private:
 
     // Member variables
 
-    uint*      pixels;
-    int        stride;
-    int        height;
-    Gradient*  gradient;
-    float      xctr,yctr;
-    float      xstep0,ystep0;
-    float      xstep1,ystep1; 
+    uint* pixels;
+    int stride;
+    int height;
+    float xctr,yctr;
+    float xstep0,ystep0;
+    float xstep1,ystep1; 
+    Gradient gradient;
+    WindingRule windingRule;
+    RepeatMode repeatMode;
 }
 

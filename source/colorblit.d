@@ -16,19 +16,23 @@ import dg2d.misc;
 
 struct ColorBlit
 {   
-    void init(uint* pixels, int stride, int height, uint color)
+    this(uint* pixels, int stride, int height)
     {
         assert(((cast(uint)pixels) & 15) == 0); // must be 16 byte alligned
         assert((stride & 3) == 0);              // stride must be 16 byte alligned
         assert(height > 0);
-        
+
         this.pixels = pixels;
         this.stride = stride;
         this.height = height;
+    }
+
+    void setColor(uint color)
+    {
         this.color = color;
     }
 
-    Blitter getBlitter(WindingRule wr)
+    Blitter getBlitFunc(WindingRule wr) return
     {
         if (wr == WindingRule.NonZero)
         {
