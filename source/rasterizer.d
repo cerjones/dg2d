@@ -125,7 +125,7 @@ enum fpDYScale = 1073741824.0; // as above but div 4
     y     - y position
 */
 
-public alias Blitter = void delegate(int* delta, DMWord* mask, int x0, int x1, int y);
+public alias BlitFunc = void delegate(int* delta, DMWord* mask, int x0, int x1, int y);
 
 /*
   a*b/c, with the intermediate result of a*b in 64 bit
@@ -224,7 +224,7 @@ class Rasterizer
 
     // rasterize
 
-    void rasterize(Blitter blitter)
+    void rasterize(BlitFunc blitter)
     {
         Edge dummy;
         Edge* prev = &dummy;

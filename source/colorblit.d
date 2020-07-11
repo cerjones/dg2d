@@ -1,21 +1,41 @@
-/*
+/**
+  Blitter for painting solid color.
+
   Copyright Chris Jones 2020.
   Distributed under the Boost Software License, Version 1.0.
   See accompanying file Licence.txt or copy at...
   https://www.boost.org/LICENSE_1_0.txt
 */
 
+
 module dg2d.colorblit;
 
 import dg2d.rasterizer;
 import dg2d.misc;
+import dg2d.blitex;
 
-/*
-  ColorBlit
+/**
+   Color blitter struct
+
+   You set up the properties and pass the BlitFunc to the rasterizer.
+
+   ---
+   auto cblit = AngularBlit(m_pixels,m_stride,m_height);
+   cblit.setColor(color);
+   m_rasterizer.rasterize(cblit.getBlitFunc);
+   ---
 */
 
 struct ColorBlit
 {   
+    /** Construct an color blitter.
+    pixels - pointer to a 32 bpp pixel buffer
+    stride - buffer width in pixels
+    height - buffer heigth in pixels
+
+    note: buffer must be 16 byte aligned, stride must be multiple of 4
+    */
+
     this(uint* pixels, int stride, int height)
     {
         assert(((cast(uint)pixels) & 15) == 0); // must be 16 byte alligned
@@ -27,14 +47,18 @@ struct ColorBlit
         this.height = height;
     }
 
+    /** set the colour to blit */
+
     void setColor(uint color)
     {
         this.color = color;
     }
 
-    Blitter getBlitFunc(WindingRule wr) return
+    /** returns a BlitFunc for use by the rasterizer */
+
+    BlitFunc getBlitFunc(WindingRule rule) return
     {
-        if (wr == WindingRule.NonZero)
+        if (rule == WindingRule.NonZero)
         {
             return &color_blit!(WindingRule.NonZero);
         }
@@ -46,7 +70,7 @@ struct ColorBlit
 
 private:
 
-    void color_blit(WindingRule wr)(int* delta, DMWord* mask, int x0, int x1, int y)
+    void color_blit(WindingRule rule)(int* delta, DMWord* mask, int x0, int x1, int y)
     {
         assert(x0 >= 0);
         assert(x1 <= stride);
@@ -67,7 +91,6 @@ private:
 
         immutable __m128i XMZERO = 0;
         immutable __m128i XMFFFF = 0xFFFFFFFF;
-        immutable __m128i XMMSK16 = 0xFFFF;
 
         // paint variables
 
@@ -88,18 +111,7 @@ private:
             {
                 // Calc coverage of first pixel
 
-                static if (wr == WindingRule.NonZero)
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    cover = abs(cover)*2;
-                    if (cover > 0xFFFF) cover = 0xFFFF;
-                }
-                else
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    short tsc = cast(short) cover;
-                    cover = (tsc ^ (tsc >> 15)) << 1;
-                }
+                int cover = calcCoverage!rule(xmWinding[3]+delta[bpos*4]);
 
                 // We can skip the span
 
@@ -173,24 +185,9 @@ private:
                 xmWinding = _mm_shuffle_epi32!255(tqw);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
-                // Process coverage values taking account of winding rule
-                
-                static if (wr == WindingRule.NonZero)
-                {
-                    __m128i tcvr = _mm_srai_epi32(tqw,31); 
-                    tqw = _mm_add_epi32(tcvr,tqw);
-                    tqw = _mm_xor_si128(tqw,tcvr);        // abs
-                    tcvr = _mm_packs_epi32(tqw,XMZERO);   // saturate/pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);       // << to uint16
-                }
-                else
-                {
-                    __m128i tcvr = _mm_and_si128(tqw,XMMSK16); 
-                    tqw = _mm_srai_epi16(tcvr,15);       // mask
-                    tcvr = _mm_xor_si128(tcvr,tqw);      // fold in halff
-                    tcvr = _mm_packs_epi32(tcvr,XMZERO); // pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);      // << to uint16
-                } 
+                // calculate coverage from winding
+
+                __m128i tcvr = calcCoverage!rule(tqw);
 
                 // Load destination pixels
 

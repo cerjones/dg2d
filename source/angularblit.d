@@ -1,5 +1,5 @@
 /**
-  The module contains the angular gradient blitter
+  Blitter for painting angular gradients.
 
   Copyright Chris Jones 2020.
   Distributed under the Boost Software License, Version 1.0.
@@ -15,14 +15,14 @@ import dg2d.misc;
 import dg2d.blitex;
 
 /**
-   This struct provides angular gradient blitting for the rasterizer. You set up
-   the properties and pass the "Blitter" returned by getBlitFunc to the rasterize
-   function of the rasterizer class.
+   Angular gradient blitter struct.
+
+   You set up the properties and pass the BlitFunc to the rasterizer.
 
    ---
    auto ablit = AngularBlit(m_pixels,m_stride,m_height);
    ablit.setPaint(grad, wr, RepeatMode.Mirror, 4.0f);
-   ablit.setCoords(x0,y0,x1,y1,r2);
+   ablit.setElipse(x0,y0,x1,y1,x2,y2);
    m_rasterizer.rasterize(ablit.getBlitFunc);
    ---
 */
@@ -54,32 +54,52 @@ struct AngularBlit
     void setPaint(Gradient grad, WindingRule wrule, RepeatMode rmode, float numRepeats)
     {
         assert(grad !is null);
-        assert(isPow2(gradient.lookupLength));
+        assert(isPow2(grad.lookupLength));
         gradient = grad;
         windingRule = wrule;
         repeatMode = rmode;
         this.numRepeats = numRepeats;
     }
 
-    /** (x0,y0) is the center point
-    (x1,y1) is the first axis */
+    /** Specifiy the orientation in terms of an elipse, for that we need 3 points...
+    (x0,y0) is the center of the elipse
+    (x1,y1) is radius at 0 degrees
+    (x2,y2) is radius at 90 degrees
+    The radii dont need to be at right angles, so it can handle elipse that has been
+    though any affine transform.
+    */
 
-    void setCoords(float x0, float y0, float x1, float y1, float r2)
+    void setElipse(float x0, float y0, float x1, float y1, float x2, float y2)
     {
         xctr = x0;
         yctr = y0;
-        float w = x1-x0;
-        float h = y1-y0;
-        float hyp = w*w + h*h;
-        if (hyp < 0.1) hyp = 0.1;
-        xstep0 = w / hyp;
-        ystep0 = h / hyp;
-        hyp = sqrt(hyp);
-        xstep1 = h / (r2*hyp);
-        ystep1 = -w / (r2*hyp); 
+        float w0 = x1-x0;
+        float h0 = y1-y0;
+        float hyp0 = w0*w0 + h0*h0;
+        if (hyp0 < 0.1) hyp0 = 0.1;
+        xstep0 = w0 / hyp0;
+        ystep0 = h0 / hyp0;
+        float w1 = x2-x0;
+        float h1 = y2-y0;
+        float hyp1 = w1*w1 + h1*h1;
+        if (hyp1 < 0.1) hyp1 = 0.1;
+        xstep1 = w1 / hyp1;
+        ystep1 = h1 / hyp1;
     }
 
-    Blitter getBlitFunc() return
+    /** Specifiy the orientation in terms of an circle, for that we need two points,
+    (x0,y0) is the center of the circle
+    (x1,y1) is radius at 0 degrees
+    */
+
+    void setCircle(float x0, float y0, float x1, float y1)
+    {
+        setElipse(x0,y0,x1,y1,x0-y1+y0,y0+x1-x0);
+    }
+
+    /** returns a BlitFunc for use by the rasterizer */
+
+    BlitFunc getBlitFunc() return
     {
         if (windingRule == WindingRule.NonZero)
         {
@@ -129,7 +149,6 @@ private:
 
         immutable __m128i XMZERO = 0;
         immutable __m128i XMFFFF = 0xFFFFFFFF;
-        immutable __m128i XMMSK16 = 0xFFFF;
 
         // paint variables
 
@@ -155,18 +174,7 @@ private:
             {
                 // Calc coverage of first pixel
 
-                static if (wr == WindingRule.NonZero)
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    cover = abs(cover)*2;
-                    if (cover > 0xFFFF) cover = 0xFFFF;
-                }
-                else
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    short tsc = cast(short) cover;
-                    cover = (tsc ^ (tsc >> 15)) * 2;
-                }
+                int cover = calcCoverage!wr(xmWinding[3]+delta[bpos*4]);
 
                 // We can skip the span
 
@@ -293,24 +301,9 @@ private:
                 __m128 poly = polyAprox(grad);
                 poly = fixupQuadrant(poly,xmT0,xmT1)*lutscale;
 
-                // Process coverage values taking account of winding rule
-                
-                static if (wr == WindingRule.NonZero)
-                {
-                    __m128i tcvr = _mm_srai_epi32(tqw,31); 
-                    tqw = _mm_add_epi32(tcvr,tqw);
-                    tqw = _mm_xor_si128(tqw,tcvr);        // abs
-                    tcvr = _mm_packs_epi32(tqw,XMZERO);   // saturate/pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);       // << to uint16
-                }
-                else
-                {
-                    __m128i tcvr = _mm_and_si128(tqw,XMMSK16); 
-                    tqw = _mm_srai_epi16(tcvr,15);       // mask
-                    tcvr = _mm_xor_si128(tcvr,tqw);      // fold in halff
-                    tcvr = _mm_packs_epi32(tcvr,XMZERO); // pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);      // << to uint16
-                }
+                // calculate coverage from winding
+
+                __m128i tcvr = calcCoverage!wr(tqw);
 
                 // convert grad pos to integer
 

@@ -1,4 +1,6 @@
-/*
+/**
+  Blitter for painting linear gradients.
+
   Copyright Chris Jones 2020.
   Distributed under the Boost Software License, Version 1.0.
   See accompanying file Licence.txt or copy at...
@@ -13,11 +15,29 @@ import dg2d.misc;
 import dg2d.blitex;
 
 /*
-  linear gradient blit
+   Linear gradient blitter struct.
+
+   You set up the properties and pass the BlitFunc to the rasterizer.
+
+   ---
+   auto ablit = AngularBlit(m_pixels,m_stride,m_height);
+   ablit.setPaint(grad, wr, RepeatMode.Mirror, 4.0f);
+   ablit.setElipse(x0,y0,x1,y1,x2,y2);
+   m_rasterizer.rasterize(ablit.getBlitFunc);
+   ---
 */
 
+
 struct LinearBlit
-{   
+{  
+    /** Construct an linear gradient blitter.
+    pixels - pointer to a 32 bpp pixel buffer
+    stride - buffer width in pixels
+    height - buffer heigth in pixels
+
+    note: buffer must be 16 byte aligned, stride must be multiple of 4
+    */
+
     this(uint* pixels, int stride, int height)
     {
         assert(((cast(uint)pixels) & 15) == 0); // must be 16 byte aligned
@@ -28,6 +48,9 @@ struct LinearBlit
         this.height = height;
     }
 
+    /** set the gradient, winding rule and repeat mode.
+    */
+
     void setPaint(Gradient grad, WindingRule wrule, RepeatMode rmode)
     {
         assert(grad !is null);
@@ -36,6 +59,9 @@ struct LinearBlit
         windingRule = wrule;
         repeatMode = rmode;
     }
+
+    /** Set the coordinates for the start and end point of the linear gradient.
+    */
 
     void setCoords(float x0, float y0, float x1, float y1)
     {
@@ -49,7 +75,9 @@ struct LinearBlit
         ystep = gradient.lookupLength * h / hsq;
     }
 
-    Blitter getBlitFunc() return
+    /** returns a BlitFunc for use by the rasterizer */
+
+    BlitFunc getBlitFunc() return
     {
         if (windingRule == WindingRule.NonZero)
         {
@@ -98,7 +126,6 @@ private:
         // XMM constants
 
         immutable __m128i XMZERO = 0;
-        immutable __m128i XMMSK16 = 0xFFFF;
 
         // paint variables
 
@@ -119,18 +146,7 @@ private:
             {
                 // Calc coverage of first pixel
 
-                static if (wr == WindingRule.NonZero)
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    cover = abs(cover)*2;
-                    if (cover > 0xFFFF) cover = 0xFFFF;
-                }
-                else
-                {
-                    int cover = xmWinding[3]+delta[bpos*4];
-                    short tsc = cast(short) cover;
-                    cover = (tsc ^ (tsc >> 15)) * 2;
-                }
+                int cover = calcCoverage!wr(xmWinding[3]+delta[bpos*4]);
 
                 // We can skip the span
 
@@ -240,24 +256,9 @@ private:
                 xmWinding = _mm_shuffle_epi32!255(tqw);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
-                // Process coverage values taking account of winding rule
-                
-                static if (wr == WindingRule.NonZero)
-                {
-                    __m128i tcvr = _mm_srai_epi32(tqw,31); 
-                    tqw = _mm_add_epi32(tcvr,tqw);
-                    tqw = _mm_xor_si128(tqw,tcvr);         // abs
-                    tcvr = _mm_packs_epi32(tqw,XMZERO);    // saturate/pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);        // << to uint16
-                }
-                else
-                {
-                    __m128i tcvr = _mm_and_si128(tqw,XMMSK16); 
-                    tqw = _mm_srai_epi16(tcvr,15);         // mask
-                    tcvr = _mm_xor_si128(tcvr,tqw);        // fold in halff
-                    tcvr = _mm_packs_epi32(tcvr,XMZERO);   // pack to int16
-                    tcvr = _mm_slli_epi16(tcvr, 1);        // << to uint16
-                }
+                // calculate coverage from winding
+
+                __m128i tcvr = calcCoverage!wr(tqw);
 
                 // convert grad pos to integer
 

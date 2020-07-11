@@ -11,8 +11,15 @@ module dg2d.blitex;
 import dg2d.misc;
 import dg2d.rasterizer;
 
+private:
+
+enum __m128i XMZERO = [0,0,0,0];
+enum __m128i XMFFFF = [0xFFFF,0xFFFF,0xFFFF,0xFFFF];
+
+public:
+
 /**
-  Calculate the gradient index for given repeat mode 
+  Calculate the gradient index for given repeat mode
 */
 
 __m128i calcRepeatModeIDX(RepeatMode mode)(__m128i ipos, __m128i lutmsk, __m128i lutmsk2)
@@ -23,7 +30,6 @@ __m128i calcRepeatModeIDX(RepeatMode mode)(__m128i ipos, __m128i lutmsk, __m128i
     }
     else static if (mode == RepeatMode.Pad)
     {
-        enum __m128i XMZERO = [0,0,0,0]; // Needed because DMD sucks balls
         ipos = ipos & _mm_cmpgt_epi32(ipos, XMZERO);
         return (ipos | _mm_cmpgt_epi32(ipos, lutmsk)) & lutmsk;
     }
@@ -35,12 +41,13 @@ __m128i calcRepeatModeIDX(RepeatMode mode)(__m128i ipos, __m128i lutmsk, __m128i
 
 /**
   broadcast alpha
-
-  x is [A2,R2,G2,B2,A1,R1,G1,B1], 16 bit per channel but only low 8 bits used 
-  returns [A2,A2,A2,A2,A1,A1,A1,A1], all 16 bits used
-  shuffleVector version (commented out) should lower to pshufb, but it is a bit slower on
-  my CPU, maybe from increased register pressure?
+  
+  if x = [A1,R1,G1,B1,A0,R0,G0,B0], values in low 8 bits of each 16 bit element
+  the result is [A1,A1,A1,A1,A0,A0,A0,A0], alpha in high 8 bits of each 16 bit element
 */
+
+// shuffleVector version (commented out) should lower to pshufb, but it is a bit slower on
+// my CPU, maybe from increased register pressure?
 
 __m128i _mm_broadcast_alpha(__m128i x)
 {
@@ -52,3 +59,44 @@ __m128i _mm_broadcast_alpha(__m128i x)
 //            (cast(byte16)a, cast(byte16)a);
 }
 
+/**
+  calculate coverage from winding value
+*/
+
+int calcCoverage(WindingRule rule)(int winding)
+{
+    static if (rule == WindingRule.NonZero)
+    {
+        int tmp = abs(winding)*2;
+        return (tmp > 0xFFFF) ? 0xFFFF : tmp;
+    }
+    else
+    {
+        short tmp = cast(short) winding;
+        return (tmp ^ (tmp >> 15)) * 2;
+    }
+}
+
+/**
+  calculate coverage from winding value
+*/
+
+__m128i calcCoverage(WindingRule rule)(__m128i winding)
+{
+    static if (rule == WindingRule.NonZero)
+    {
+        __m128i mask = _mm_srai_epi32(winding,31); 
+        __m128i tmp = _mm_add_epi32(winding,mask);
+        tmp = _mm_xor_si128(tmp,mask);         // abs
+        tmp = _mm_packs_epi32(tmp,XMZERO);     // saturate/pack to int16
+        return _mm_slli_epi16(tmp, 1);         // << to uint16
+    }
+    else
+    {
+        __m128i tmp = _mm_and_si128(winding,XMFFFF); 
+        __m128i mask = _mm_srai_epi16(tmp,15);  // mask
+        tmp = _mm_xor_si128(tmp,mask);          // fold in halff
+        tmp = _mm_packs_epi32(tmp,XMZERO);      // pack to int16
+        return _mm_slli_epi16(tmp, 1);          // << to uint16
+    } 
+}

@@ -137,7 +137,7 @@ class Canvas
     }
 
     void fillRadial(ref Path!float path, Gradient grad, WindingRule wr, float x0, float y0,
-        float x1, float y1,float r)
+        float x1, float y1, float r)
     {
         import dg2d.radialblit;
 
@@ -153,7 +153,7 @@ class Canvas
 
         auto rblit = RadialBlit(m_pixels,m_stride,m_height);
         rblit.setPaint(grad, wr, RepeatMode.Mirror);
-        rblit.setCoords(x0,y0,x1,y1,r);
+        rblit.setElipse(x0,y0,x1,y1,x0-1*(y1-y0),y0+1*(x1-x0));
         m_rasterizer.rasterize(rblit.getBlitFunc);
     }
 
@@ -174,8 +174,11 @@ class Canvas
         m_rasterizer.addPath2(path.offset(m_view.left,m_view.top));
 
         auto ablit = AngularBlit(m_pixels,m_stride,m_height);
-        ablit.setPaint(grad, wr, RepeatMode.Mirror, 4.0f);
-        ablit.setCoords(x0,y0,x1,y1,r2);
+        ablit.setPaint(grad, wr, RepeatMode.Mirror, 2f);
+        //ablit.setCoords(x0,y0,x1,y1,r2);
+        //ablit.setElipse(x0,y0,x1,y1,x0-0.5*(y1-y0),y0+0.5*(x1-x0));
+        ablit.setElipse(400,400,400,100,500,400);
+        //ablit.setCircle(x0,y0,x1,y1);
         m_rasterizer.rasterize(ablit.getBlitFunc);
     }
 
