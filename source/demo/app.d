@@ -62,8 +62,8 @@ class GFXPanel : Widget
         switch(fillidx % 4)
         {
             case 0:
-                canvas.fill(0xFF101520);
-                canvas.fill(*sel_path,0xFFFFFFFF,sel_wind);
+                canvas.fill(0xff201520);
+                canvas.fill(*sel_path,0xC08080FF,sel_wind);
                 break;
             case 1:
                 canvas.fill(0xFF101520);

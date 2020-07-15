@@ -95,9 +95,9 @@ private:
         // paint variables
 
         __m128i xmColor = _mm_loadu_si32 (&color);
-        xmColor = _mm_unpacklo_epi8 (xmColor, _mm_setzero_si128());
+        xmColor = _mm_unpacklo_epi8 (xmColor, xmColor);
         xmColor = _mm_unpacklo_epi64 (xmColor, xmColor);
-        __m128i xmAlpha = _mm_set1_epi16 (cast(ushort) ((color >> 24) << 8));
+        __m128i xmAlpha = _mm_set1_epi16 (cast(ushort) ((color >> 24) * 257));
 
         // main loop
 
@@ -145,6 +145,33 @@ private:
                     __m128i tpma = _mm_set1_epi16(cast(ushort) cover); 
                     tpma = _mm_mulhi_epu16(xmAlpha,tpma);
                     __m128i tpmc = _mm_mulhi_epu16(xmColor,tpma);
+                    tpma  = tpma ^ XMFFFF;               // 1-alpha
+         
+                    uint* ptr = &dest[bpos*4];
+                    uint* end = &dest[nsb*4];
+
+                    while (ptr < end)
+                    {
+                        __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                        __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                        d0 = _mm_unpacklo_epi8(d0,d0);
+                        d0 = _mm_mulhi_epu16(d0,tpma);
+                        d1 = _mm_mulhi_epu16(d1,tpma);
+                        d0 = _mm_add_epi16(d0,tpmc);
+                        d0 = _mm_srli_epi16(d0,8);
+                        d1 = _mm_add_epi16(d1,tpmc);
+                        d1 = _mm_srli_epi16(d1,8);                       
+                        d0 = _mm_packus_epi16(d0,d1);
+                        _mm_store_si128(cast(__m128i*)ptr,d0);
+                        ptr+=4;
+                    }
+
+                    bpos = nsb;
+
+                    /*
+                    __m128i tpma = _mm_set1_epi16(cast(ushort) cover); 
+                    tpma = _mm_mulhi_epu16(xmAlpha,tpma);
+                    __m128i tpmc = _mm_mulhi_epu16(xmColor,tpma);
                     tpmc = _mm_packus_epi16(tpmc,tpmc);
                     tpma  = tpma ^ XMFFFF;               // 1-alpha
 
@@ -165,6 +192,7 @@ private:
                     }
 
                     bpos = nsb;
+                    */
                 }
             }
 
@@ -192,9 +220,9 @@ private:
                 // Load destination pixels
 
                 __m128i d0 = _mm_loadu_si64 (ptr);
-                d0 = _mm_unpacklo_epi8 (d0, XMZERO);
+                d0 = _mm_unpacklo_epi8 (d0, d0);
                 __m128i d1 = _mm_loadu_si64 (ptr+2);
-                d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                d1 = _mm_unpacklo_epi8 (d1, d1);
 
                 // muliply source alpha & coverage
 
@@ -204,7 +232,7 @@ private:
                 a0 = _mm_unpacklo_epi32(a0,a0);
 
                 // r = alpha*color + dest - alpha*dest
-
+/*
                 __m128i r0 = _mm_mulhi_epu16(xmColor,a0);
                 __m128i tmp = _mm_mulhi_epu16(d0,a0);
                 r0 = _mm_add_epi16(r0, d0);
@@ -215,6 +243,20 @@ private:
                 r1 = _mm_add_epi16(r1, d1);
                 r1 = _mm_sub_epi16(r1, tmp);
 
+                __m128i r01 = _mm_packus_epi16(r0,r1);
+*/
+                __m128i r0 = _mm_mulhi_epu16(xmColor,a0);
+                r0 = _mm_add_epi16(r0, d0);
+                d0 = _mm_mulhi_epu16(d0,a0);
+                r0 = _mm_sub_epi16(r0, d0);
+                r0 = _mm_srli_epi16(r0,8);
+
+                __m128i r1 = _mm_mulhi_epu16(xmColor,a1);
+                r1 = _mm_add_epi16(r1, d1);
+                d1 = _mm_mulhi_epu16(d1,a1);
+                r1 = _mm_sub_epi16(r1, d1);
+                r1 = _mm_srli_epi16(r1,8);
+                      
                 __m128i r01 = _mm_packus_epi16(r0,r1);
 
                 _mm_store_si128(cast(__m128i*)ptr,r01);

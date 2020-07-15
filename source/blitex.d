@@ -100,3 +100,32 @@ __m128i calcCoverage(WindingRule rule)(__m128i winding)
         return _mm_slli_epi16(tmp, 1);          // << to uint16
     } 
 }
+
+
+/* NEW BLEND DEV WORK
+
+  put Color0 and Color1, in low 64 bits of R128
+  then unpack low interleaved with itself,
+  so each byte becomes 16 bits => (b << 8) | b 
+  this is the same as multiplying by 257, essentialy converts 0..FF, into 0..FFFF
+
+  c = _mm_unpacklo_epi8 (c,c);
+
+  then for alpha...
+
+  alpha = _mm_shufflelo_epi16!255(c);
+  alpha = _mm_shufflehi_epi16!255(alpha);
+
+  that gives
+
+  c = [BB0,GG0,RR0,AA0,BB1,GG1,RR1,AA1]
+  alpha = [AA0,AA0,AA0,AA0,AA1,AA1,AA1,AA1]
+
+*/
+
+__m128i _mm_broadcast_alpha16(__m128i x)
+{
+    x = _mm_shufflelo_epi16!255(x);
+    return _mm_shufflehi_epi16!255(x);
+}
+
