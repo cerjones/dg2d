@@ -79,6 +79,8 @@ int calcCoverage(WindingRule rule)(int winding)
 
 /**
   calculate coverage from winding value
+  incoming 4x int32
+  outgoing 4x int16, in lower 64 bits of return val, top 64 is zero
 */
 
 __m128i calcCoverage(WindingRule rule)(__m128i winding)
@@ -121,6 +123,12 @@ __m128i calcCoverage(WindingRule rule)(__m128i winding)
   c = [BB0,GG0,RR0,AA0,BB1,GG1,RR1,AA1]
   alpha = [AA0,AA0,AA0,AA0,AA1,AA1,AA1,AA1]
 
+*/
+
+/**
+  Shuffles alpha to all positions, x and result are array of u16
+  result.u16[0..3] = x.u16[3]
+  result.u16[4..7] = x.u16[7] 
 */
 
 __m128i _mm_broadcast_alpha16(__m128i x)
