@@ -142,10 +142,10 @@ private:
 
                 else
                 {
-                    __m128i tpma = _mm_set1_epi16(cast(ushort) cover); 
-                    tpma = _mm_mulhi_epu16(xmAlpha,tpma);
-                    __m128i tpmc = _mm_mulhi_epu16(xmColor,tpma);
-                    tpma  = tpma ^ XMFFFF;               // 1-alpha
+                    __m128i tsalpha = _mm_set1_epi16(cast(ushort) cover); 
+                    tsalpha = _mm_mulhi_epu16(xmAlpha,tsalpha);
+                    __m128i tscolor = _mm_mulhi_epu16(xmColor,tsalpha);
+                    tsalpha  = tsalpha ^ XMFFFF;               // 1-alpha
          
                     uint* ptr = &dest[bpos*4];
                     uint* end = &dest[nsb*4];
@@ -155,11 +155,11 @@ private:
                         __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
                         __m128i d1 = _mm_unpackhi_epi8(d0,d0);
                         d0 = _mm_unpacklo_epi8(d0,d0);
-                        d0 = _mm_mulhi_epu16(d0,tpma);
-                        d1 = _mm_mulhi_epu16(d1,tpma);
-                        d0 = _mm_add_epi16(d0,tpmc);
+                        d0 = _mm_mulhi_epu16(d0,tsalpha);
+                        d1 = _mm_mulhi_epu16(d1,tsalpha);
+                        d0 = _mm_add_epi16(d0,tscolor);
                         d0 = _mm_srli_epi16(d0,8);
-                        d1 = _mm_add_epi16(d1,tpmc);
+                        d1 = _mm_add_epi16(d1,tscolor);
                         d1 = _mm_srli_epi16(d1,8);                       
                         d0 = _mm_packus_epi16(d0,d1);
                         _mm_store_si128(cast(__m128i*)ptr,d0);
@@ -180,27 +180,26 @@ private:
             {
                 // Integrate delta values
 
-                __m128i tqw = _mm_load_si128(cast(__m128i*)dlptr);
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!4(tqw)); 
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!8(tqw)); 
-                tqw = _mm_add_epi32(tqw, xmWinding); 
-                xmWinding = _mm_shuffle_epi32!255(tqw);  
+                __m128i idv = _mm_load_si128(cast(__m128i*)dlptr);
+                idv = _mm_add_epi32(idv, _mm_slli_si128!4(idv)); 
+                idv = _mm_add_epi32(idv, _mm_slli_si128!8(idv)); 
+                idv = _mm_add_epi32(idv, xmWinding); 
+                xmWinding = _mm_shuffle_epi32!255(idv);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
                 // calculate coverage from winding
 
-                __m128i tcvr = calcCoverage!rule(tqw);
+                __m128i xmcover = calcCoverage!rule(idv);
 
                 // Load destination pixels
 
-                __m128i d0 = _mm_loadu_si64 (ptr);
-                d0 = _mm_unpacklo_epi8 (d0, d0);
-                __m128i d1 = _mm_loadu_si64 (ptr+2);
-                d1 = _mm_unpacklo_epi8 (d1, d1);
+                __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                d0 = _mm_unpacklo_epi8(d0,d0);
 
                 // muliply source alpha & coverage
 
-                __m128i a0 = _mm_mulhi_epu16(tcvr,xmAlpha);
+                __m128i a0 = _mm_mulhi_epu16(xmcover,xmAlpha);
                 a0 = _mm_unpacklo_epi16(a0,a0); 
                 __m128i a1 = _mm_unpackhi_epi32(a0,a0);
                 a0 = _mm_unpacklo_epi32(a0,a0);

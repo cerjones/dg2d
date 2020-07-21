@@ -54,7 +54,7 @@ struct RadialBlit
     void setPaint(Gradient grad, WindingRule wrule, RepeatMode rmode)
     {
         assert(grad !is null);
-        assert(isPow2(gradient.lookupLength));
+        assert(isPow2(grad.lookupLength));
         gradient = grad;
         windingRule = wrule;
         repeatMode = rmode;

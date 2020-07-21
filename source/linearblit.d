@@ -54,7 +54,7 @@ struct LinearBlit
     void setPaint(Gradient grad, WindingRule wrule, RepeatMode rmode)
     {
         assert(grad !is null);
-        assert(isPow2(gradient.lookupLength));
+        assert(isPow2(grad.lookupLength));
         gradient = grad;
         windingRule = wrule;
         repeatMode = rmode;
@@ -152,8 +152,8 @@ private:
 
                 if (cover == 0)
                 {
-                    __m128 tsl = _mm_set1_ps(nsb-bpos);
-                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(tsl,xmStep0));
+                    __m128 xskip = _mm_set1_ps(nsb-bpos);
+                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(xskip,xmStep0));
                     bpos = nsb;
                 }
 
@@ -186,7 +186,7 @@ private:
 
                 else
                 {
-                    __m128i tqcvr = _mm_set1_epi16 (cast(ushort) cover);
+                    __m128i xmcover = _mm_set1_epi16 (cast(ushort) cover);
 
                     uint* ptr = &dest[bpos*4];
                     uint* end = &dest[nsb*4];
@@ -198,35 +198,45 @@ private:
 
                         ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
-                        __m128i d0 = _mm_loadu_si64 (ptr);
-                        d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                        __m128i d1 = _mm_loadu_si64 (ptr+2);
-                        d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                        __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                        __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                        d0 = _mm_unpacklo_epi8(d0,d0);
+
+                        // load grad colors alpha
 
                         __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                        __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                        c0 = _mm_unpacklo_epi32 (c0, tnc);
-                        c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                        __m128i a0 = _mm_broadcast_alpha(c0);
-                        a0 = _mm_mulhi_epu16(a0, tqcvr);
-                       
+                        __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                        c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                        c0 = _mm_unpacklo_epi8 (c0, c0);
+                        
+                        __m128i a0 = _mm_mulhi_epu16(c0,xmcover);
+
                         __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                        tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                        c1 = _mm_unpacklo_epi32 (c1, tnc);
-                        c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                        __m128i a1 = _mm_broadcast_alpha(c1);
-                        a1 = _mm_mulhi_epu16(a1, tqcvr);
+                        __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                        c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                        c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                        __m128i a1 = _mm_mulhi_epu16(c1,xmcover);
+
+                        // broadcast alpha
+
+                        a0 = _mm_shufflelo_epi16!255(a0);
+                        a0 = _mm_shufflehi_epi16!255(a0);
+                        a1 = _mm_shufflelo_epi16!255(a1);
+                        a1 = _mm_shufflehi_epi16!255(a1);
 
                        // alpha*source + dest - alpha*dest
 
                         c0 = _mm_mulhi_epu16 (c0,a0);
                         c1 = _mm_mulhi_epu16 (c1,a1);
-                        c0 = _mm_adds_epi16 (c0,d0);
-                        c1 = _mm_adds_epi16 (c1,d1);
+                        c0 = _mm_add_epi16 (c0,d0);
+                        c1 = _mm_add_epi16 (c1,d1);
                         d0 = _mm_mulhi_epu16 (d0,a0);
                         d1 = _mm_mulhi_epu16 (d1,a1);
-                        c0 =  _mm_subs_epi16 (c0, d0);
-                        c1 =  _mm_subs_epi16 (c1, d1);
+                        c0 =  _mm_sub_epi16 (c0,d0);
+                        c1 =  _mm_sub_epi16 (c1,d1);
+                        c0 = _mm_srli_epi16 (c0,8);
+                        c1 = _mm_srli_epi16 (c1,8);
 
                         d0 = _mm_packus_epi16 (c0,c1);
 
@@ -249,16 +259,16 @@ private:
             {
                 // Integrate delta values
 
-                __m128i tqw = _mm_load_si128(cast(__m128i*)dlptr);
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!4(tqw)); 
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!8(tqw)); 
-                tqw = _mm_add_epi32(tqw, xmWinding); 
-                xmWinding = _mm_shuffle_epi32!255(tqw);  
+                __m128i idv = _mm_load_si128(cast(__m128i*)dlptr);
+                idv = _mm_add_epi32(idv, _mm_slli_si128!4(idv)); 
+                idv = _mm_add_epi32(idv, _mm_slli_si128!8(idv)); 
+                idv = _mm_add_epi32(idv, xmWinding); 
+                xmWinding = _mm_shuffle_epi32!255(idv);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
                 // calculate coverage from winding
 
-                __m128i tcvr = calcCoverage!wr(tqw);
+                __m128i xmcover = calcCoverage32!wr(idv);
 
                 // convert grad pos to integer
 
@@ -268,42 +278,48 @@ private:
                 ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
                 // Load destination pixels
+               
+                __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                d0 = _mm_unpacklo_epi8(d0,d0);
 
-                __m128i d0 = _mm_loadu_si64 (ptr);
-                d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                __m128i d1 = _mm_loadu_si64 (ptr+2);
-                d1 = _mm_unpacklo_epi8 (d1, XMZERO);
-
-                // load grad colors
-
-                tcvr = _mm_unpacklo_epi16 (tcvr, tcvr);
-                __m128i tcvr2 = _mm_unpackhi_epi32 (tcvr, tcvr);
-                tcvr = _mm_unpacklo_epi32 (tcvr, tcvr);
+                // load grad colors alpha
 
                 __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                c0 = _mm_unpacklo_epi32 (c0, tnc);
-                c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                __m128i a0 = _mm_broadcast_alpha(c0);
-                a0 = _mm_mulhi_epu16(a0, tcvr);
+                __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                c0 = _mm_unpacklo_epi8 (c0, c0);
+                
+                __m128i a0 = _mm_shuffle_epi32!0x50(xmcover);
+                a0 = _mm_mulhi_epu16(a0, c0);
 
                 __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                c1 = _mm_unpacklo_epi32 (c1, tnc);
-                c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                __m128i a1 = _mm_broadcast_alpha(c1);
-                a1 = _mm_mulhi_epu16(a1, tcvr2);
+                __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                __m128i a1 = _mm_shuffle_epi32!0xFA(xmcover);
+                a1 = _mm_mulhi_epu16(a1, c1);
+
+                // broadcast alpha
+
+                a0 = _mm_shufflelo_epi16!255(a0);
+                a0 = _mm_shufflehi_epi16!255(a0);
+                a1 = _mm_shufflelo_epi16!255(a1);
+                a1 = _mm_shufflehi_epi16!255(a1);
 
                 // alpha*source + dest - alpha*dest
 
                 c0 = _mm_mulhi_epu16 (c0,a0);
                 c1 = _mm_mulhi_epu16 (c1,a1);
-                c0 = _mm_adds_epi16 (c0,d0);
-                c1 = _mm_adds_epi16 (c1,d1);
+                c0 = _mm_add_epi16 (c0,d0);
+                c1 = _mm_add_epi16 (c1,d1);
                 d0 = _mm_mulhi_epu16 (d0,a0);
                 d1 = _mm_mulhi_epu16 (d1,a1);
-                c0 =  _mm_subs_epi16 (c0, d0);
-                c1 =  _mm_subs_epi16 (c1, d1);
+                c0 =  _mm_sub_epi16 (c0, d0);
+                c1 =  _mm_sub_epi16 (c1, d1);
+                c0 = _mm_srli_epi16 (c0,8);
+                c1 = _mm_srli_epi16 (c1,8);
 
                 d0 = _mm_packus_epi16 (c0,c1);
 

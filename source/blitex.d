@@ -13,8 +13,9 @@ import dg2d.rasterizer;
 
 private:
 
-enum __m128i XMZERO = [0,0,0,0];
-enum __m128i XMFFFF = [0xFFFF,0xFFFF,0xFFFF,0xFFFF];
+immutable __m128i XMZERO = 0;
+immutable __m128i XMFFFF = 0xFFFF;
+immutable __m128i XM7FFF = 0x7FFF;
 
 public:
 
@@ -95,12 +96,56 @@ __m128i calcCoverage(WindingRule rule)(__m128i winding)
     }
     else
     {
-        __m128i tmp = _mm_and_si128(winding,XMFFFF); 
+        __m128i tmp = _mm_and_si128(winding,XMFFFF); // dont need this??
         __m128i mask = _mm_srai_epi16(tmp,15);  // mask
-        tmp = _mm_xor_si128(tmp,mask);          // fold in halff
+        tmp = _mm_xor_si128(tmp,mask);          // fold in half
         tmp = _mm_packs_epi32(tmp,XMZERO);      // pack to int16
         return _mm_slli_epi16(tmp, 1);          // << to uint16
     } 
+}
+
+
+// as above but coverage is returned in high 16 bits of each 32 bits, 
+// could use SSEE3 abs insruction if availible
+
+__m128i calcCoverage32(WindingRule rule)(__m128i winding)
+{
+
+    static if (rule == WindingRule.NonZero)
+    {
+        __m128i absmsk = _mm_srai_epi32(winding,31);
+        __m128i tmp = _mm_xor_si128(winding,absmsk); // abs technically off by one, but irrelevant
+        __m128i maxmsk = _mm_cmpgt_epi32 (tmp, 0x7FFF);
+        tmp = _mm_or_si128 (tmp, maxmsk);            // max 0x7FFF
+        return _mm_slli_epi32(tmp, 17);              // shift to use top 16 bits of each 32 bit word
+    }
+    else
+    {
+        __m128i mask = _mm_srai_epi16(winding,15);
+        __m128i tmp = _mm_xor_si128(winding,mask);  // if bit 16 set, we xor all other bits
+        return _mm_slli_epi16(tmp, 17);             // shift to use top 16 bits of each 32 bit word
+    }
+
+/*
+    static if (rule == WindingRule.NonZero)
+    {
+        __m128i mask = _mm_srai_epi32(winding,31); 
+        __m128i tmp = _mm_add_epi32(winding,mask);
+        tmp = _mm_xor_si128(tmp,mask);         // abs
+        tmp = _mm_packs_epi32(tmp,XMZERO);     // saturate/pack to int16
+        tmp = _mm_slli_epi16(tmp, 1);         // << to uint16
+        return _mm_unpacklo_epi16(tmp,tmp);
+    }
+    else
+    {
+        __m128i tmp = _mm_and_si128(winding,XMFFFF); // dont need this??
+        __m128i mask = _mm_srai_epi16(tmp,15);  // mask
+        tmp = _mm_xor_si128(tmp,mask);          // fold in half
+        tmp = _mm_packs_epi32(tmp,XMZERO);      // pack to int16
+        tmp = _mm_slli_epi16(tmp, 1);          // << to uint16
+        return _mm_unpacklo_epi16(tmp,tmp);
+    } */
+
 }
 
 
