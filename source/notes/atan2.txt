@@ -68,7 +68,7 @@ can be done in int with
 xmsk = X sar 31
 ymsk = Y sar 31
 a = a ^ (xmsk ^ ymsk)
-a += (xmsk & whatevet_bit_for_PI)
+a += (xmsk & whatever_bit_for_PI)
 
 Make a bit mask from the sign bits of X and Y, XOR them and it that to flip all the bits in a
 then use the sign mask from X conditionaly add the equivelant of PI

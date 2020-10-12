@@ -11,7 +11,7 @@ import std.stdio;
 import core.sys.windows.windows;
 import std.string;
 import std.conv;
-import canvas;
+import dg2d.canvas;
 import font;
 
 static import gdi = core.sys.windows.wingdi;
@@ -211,10 +211,11 @@ public:
             case(WM_PAINT):              wm_Paint(); break;
             case(WM_CLOSE):              wm_Close(); break;
             case(WM_DESTROY):            wm_Destroy(); break;
-            case(WM_LBUTTONDOWN):        wm_Mouse(MouseEvent.LeftDown, cast(uint)lparam); break;
-            case(WM_LBUTTONDBLCLK):      wm_Mouse(MouseEvent.LeftDblCk, cast(uint)lparam); break;
-            case(WM_RBUTTONDOWN):        wm_Mouse(MouseEvent.RightDown, cast(uint)lparam); break;
-            case(WM_RBUTTONDBLCLK):      wm_Mouse(MouseEvent.RightDblCk, cast(uint)lparam); break;
+            case(WM_LBUTTONDOWN):        wm_Mouse(MouseEvent.LeftDown, cast(uint)wparam, cast(uint)lparam); break;
+            case(WM_LBUTTONDBLCLK):      wm_Mouse(MouseEvent.LeftDblCk, cast(uint)wparam, cast(uint)lparam); break;
+            case(WM_RBUTTONDOWN):        wm_Mouse(MouseEvent.RightDown, cast(uint)wparam, cast(uint)lparam); break;
+            case(WM_RBUTTONDBLCLK):      wm_Mouse(MouseEvent.RightDblCk, cast(uint)wparam, cast(uint)lparam); break;
+            case(WM_MOUSEMOVE):          wm_Mouse(MouseEvent.Move, cast(uint)wparam, cast(uint)lparam); break;
             case(WM_TIMER):              wm_Timer(); break;
 
             default: return DefWindowProc(hwnd, msg, wparam, lparam); // can't take m_handle there because of WM_CREATE
@@ -235,7 +236,7 @@ public:
         
         if ((m_canvas.width < r) || (m_canvas.height < b))
         {
-            m_canvas = new Canvas(r, b);
+            m_canvas.resize(r, b);
         }
 
         m_canvas.resetView();
@@ -264,12 +265,15 @@ public:
         EndPaint(m_handle, &ps);
     }
 
-    void wm_Mouse(MouseEvent evt, uint lparam)
+    void wm_Mouse(MouseEvent evt, uint wparam, uint lparam)
     {
         if (m_client !is null)
         {
             MouseMsg msg;
             msg.event = evt;
+            msg.left = ((wparam & MK_LBUTTON) != 0);
+            msg.middle = ((wparam & MK_MBUTTON) != 0);
+            msg.right = ((wparam & MK_RBUTTON) != 0);
             msg.x = cast(short)(lparam); // couldnt find GET_X_PARAM etc...
             msg.y = cast(short)(lparam>>16);
             m_client.internalMouse(msg);
@@ -294,15 +298,6 @@ public:
     void onPaint(Canvas canvas)
     {
 
-    }
-
-    void onClickL()
-    {
-    //    get coords
-    }
-
-    void onClickR()
-    {
     }
 
     void addClient(Widget widget)
@@ -403,7 +398,7 @@ class Widget
     {
     }
 
-    void onMouse(MouseMsg canvas)
+    void onMouse(MouseMsg msg)
     {
     }
 
@@ -437,7 +432,7 @@ private:
         foreach(widget; m_widgets)
         {
             canvas.setView(state, widget.m_x, widget.m_y, widget.right, widget.bottom); 
-            if (canvas.isClipValid) widget.internalPaint(canvas);
+            if (!canvas.isClipEmpty) widget.internalPaint(canvas);
         }
 
         canvas.resetState(state);
@@ -482,13 +477,12 @@ private:
 
 alias ButtonClick = void delegate();
 
-
 class Button : Widget
 {
-    this(int x,int y, int w, int h, string[] opts, Font f)
+    this(int x,int y, int w, int h, string text, Font f)
     {
         super(x,y,w,h);
-        m_options = opts;
+        m_text = text;
         m_font = f;
     }
 
@@ -505,11 +499,12 @@ class Button : Widget
 
     override void onPaint(Canvas c)
     {
-        c.roundRect(0,0,m_width,m_height,10, 0x80000000);
-        c.roundRect(2,2,m_width-4,m_height-4,8, 0xFFA0A0FF);
-        int tx = cast(int) (m_width - m_font.getStrWidth(m_options[m_selected])) / 2;
+        c.roundRect(0,0,m_width,m_height,10, 0x80a0c0ff);
+        c.roundRect(2,2,m_width-4,m_height-4,8, 0xFF000000);
+//        int tx = cast(int) (m_width - m_font.getStrWidth(m_text)) / 2;
+        int tx = 20;
         int ty = m_height - cast(int) (m_height - m_font.height) / 2;
-        c.drawText(tx,ty,m_options[m_selected],m_font,0xFF000000);
+        c.drawText(tx,ty,m_text,m_font,0xFFffffff);
     }
 
     override void onMouse(MouseMsg msg)
@@ -517,21 +512,18 @@ class Button : Widget
         if ((msg.event == MouseEvent.LeftDown) ||
             (msg.event == MouseEvent.LeftDblCk))
         {
-            m_selected = cast(int) ((m_selected+1) % m_options.length);
-            repaint();
             if (m_onclick !is null) m_onclick();
         }
     }
 
-    int selectedIdx()
+    void setText(string txt)
     {
-        return m_selected;
+        m_text = txt;
     }
 
 private:
 
-    string[] m_options;
-    int m_selected;
+    string m_text;
     Font m_font;
     ButtonClick m_onclick;
 }

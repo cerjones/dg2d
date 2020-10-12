@@ -1,0 +1,21 @@
+When blending with 8 bit values some arithmetic issues arise, namely that the maximum value for an 8 bit unsugned int is 255 so we should do a plain source over blend like this..
+
+r = (alpha*src + (255-alpha)*dest) / 255
+
+The problem is that there is no integer divide in the x86 SIMD instructions, and even if there were dvison is extremely slow. So we have to use a shift, IE..
+
+r = (alpha*src + (255-alpha)*dest) >> 8
+
+So we have a range of 0..255 on all the variables, but after the multiplies we scale the results back down with divison by 256. So we lose some of the range. IE..
+
+(255*255) >> 8 == 254
+
+The solution I've gone with is to scale all the values up to 16 bit. But rather than just shifting the 8 bit values up and zeroing the low 8 bits we scale the 8 bit range up to full 16 bits, 0..0xFFFF. This might seem expensive but we actualy get it for free by coverting to 16 bit like this...
+
+x = _mm_unpacklo_epi8(x, x);
+
+IE... when converting from 8 bit to 16 bit you stuff the 8 bit value in both bytes of the 16 bit value, and that is the same as multiplying by 257 (and 255*257 = 0xFFFF), and as you have to do the conversion to 16 bit anyway it's essentialy free
+
+So we get
+
+(0xFFFF * 0xFFFF) >> 24 = 0xFF

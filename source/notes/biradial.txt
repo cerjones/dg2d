@@ -1,0 +1,121 @@
+I've called this a biradial gradient, since there's two circles involved, but its the radial gradient as defined by the HTML5 Canvas specs. So you define a start circle and end circle, thus...
+
+start circle: x0,y0,r0
+end circle: x1,y1,r1
+
+And you linearly interpolate between those two circles such that...
+
+dx = x1-x0
+dy = y1-y0
+dr = r1-r0
+
+x(t) = x0 + t*dx
+y(t) = y0 + t*dy
+r(t) = r0 + t*dr
+
+So you essentially have to figure out 't' for the circle that passes through the point of interest, 't' is then used to lookup the gradient colour.
+
+So we need to calculate 't' for any given pixel (x,y)
+
+So using the equation of a circle... r^2 = x^2 + y^2
+
+r(t)^2 = (x - x(t))^2 + (y - y(t))^2
+
+We now sub the previous 3 equations into that and we get this...
+
+(r0 + t*dr)^2 = (x - x0 - t*dx)^2 + (y - y0 - t*dy)^2
+
+(x - x0 - t*dx)^2 + (y - y0 - t*dy)^2 - (r0 + t*dr)^2 = 0
+
+expands to...
+
+t^2 * (dx^2 + dy^2 - dr^2) +
+t * (2*x0*dx - 2*dx*x + 2*dy*y0 - 2*dy*y  - 2*r0*dr)
++ x^2 + y^2 + x0^2 + y0^2 - 2*x0*x - 2*y0*y - r0^2
+
+So we have a quadratic equation to solve...
+
+a = dx^2 + dy^2 - dr^2
+b = 2*x0*dx - 2*dx*x + 2*dy*y0 - 2*dy*y - 2*r0*dr
+c = x^2 + y^2 + x0^2 + y0^2 - 2*x0*x - 2*y0*y - r0^2
+
+a.t^2 + b.t + c = 0
+
+Now we meed to work out how to step along the scanline, we dont want to compute all of that for every pixel, so what we do is work out the step in each of a,b and c as we move from pixel to pixel. We can ignore any terms with no x in them as they add a constant factor to all pixels. So..
+
+a: has no terms with x, it's constant, so stepa = 0
+b: has one term with x, "-2*dx*x", so we can deduce stepb = -2*dx
+c: has two terms with x and one is squared, so it's a bit more involved...
+
+==> x^2 - 2*x0*x
+==> x*(x-2*x0)
+
+So if we keep track of 'x', we can calulate c thus...
+
+c = x*(x-2*x0) + W
+where W = (y^2 + x0^2 + y0^2 - 2*y0*y - r0^2)
+
+solution to quadratic is...
+
+t = (-b +/- sqrt(b^2 - 4ac)) / 2a
+
+let...
+q0 = 1/(2*a)
+q1 = 4*a
+
+so the discriminant D = b^2 - q1*c
+
+t = q0 * (-b +/- sqrt(b^2 - q1*c))
+
+======================================================
+Is the focus circle fully enclosed by the main circle?
+
+Find out if the distance between the center of the two circles plus the radius of the focus circle is larger than the radius of the main circle, so...
+
+distance between centers:
+
+v = sqrt((x1-x0)^2+(y1-y0)^2)
+
+then we can test if focus circle is entirely enclosed:
+
+fully_enclosed = (v+r0) < r1
+
+or..
+
+fully_enclosed = v < (r1-r0)
+
+note this ties in with one of the equations we derived earlier...
+
+a = dx^2 + dy^2 - dr^2
+
+fully_enclosed = a < 0
+
+=======================================================
+Solution to the quadratic when the focus is enclosed...
+
+t = q0 * (-b - sqrt(b^2 - q1*c))
+
+Gives us the correct value for 't' in all circumstances. It works for pad and repeat gradient modes too.
+
+==========================================
+Solution when the focus is not enclosed...
+
+Again we use the same to evaluate 't'...
+
+t = q0 * (-b - sqrt(b^2 - q1*c))
+
+but we now also have a bunch of areas where the term in the square root is negative, or t goes of to negative infinity. After some experimentation I determined that we can use the the discriminant and the other solution of the quadratic to decide if the point is inside the gradient or not.
+
+d = b^2 - q1*c
+t1 = q0 * (-b + sqrt(d))
+
+If either is negative the point should be considered outside the gradient.
+
+If the focus circle is not fully enclosed then we know a > 0, so q0 > 0, so we can simplify
+
+d = b^2 - q1*c
+t1 = -b + sqrt(d)
+
+We can OR them together and test the sign.
+
+Then we have to decide what colour to put in those areas.

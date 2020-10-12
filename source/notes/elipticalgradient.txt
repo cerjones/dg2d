@@ -9,8 +9,6 @@ the location of 90 degrees for the elipse
 
 This allows mapping any linear transform to be supported. 
 
-Other ways to define the elipse can be built on top of this. If somebody wants a circle, a center point and radius can easily be converted into three points for example.
-
 so we have
 
 center : (x0,y0)
@@ -27,36 +25,23 @@ or the angle
 
 a = atan2(t1,t0)
 
-So a a circle can be define with a center point and a radius
+Other ways to define the elipse can be built on top of this. If you want a circle, a center point and the location of 0 degress on the circumference can easily be converted into three points for example.
 
-circle = x0,y1,r
+circle = x0,y0,x1,y1
 
 which becomes...
 
 p0 = x0,y0
-p1 = x0+r,y0
-p2 = x0,y0+r
+p1 = x1,y1
+p2 = x0-(y1-y0),y0+(x1-x0)
 
-an elipse can be deined with a center point, and edge point and an aspect ratio
+IE. We just define p2 as the same radius at right angle to p1
+
+An elipse can also be deined with a center point, and edge point and an aspect ratio
 
 elipse = x0,y0,x1,y1,r
 
-dx = x1-x0
-dy = y1-y0
 p0 = x0,y0
 p1 = x1,y1
-p2 = x0-dy*r,y0+dx*r
-
-you could also define the aspect ratio as radius length "rlen" at right angles to p0-->p1
-
-dx = x1-x0
-dy = y1-y0
-r = rlen / sqrt(dx^2+dy^2)
-p0 = x0,y0
-p1 = x1,y1
-p2 = x0-dy*r,y0+dx*r
-
-
-
-
+p2 = x0-r*(y1-y0),y0+r*(x1-x0)
 

@@ -1,10 +1,5 @@
 /**
-  This module provides some 2D geometric primates.
-
-  There are seperate integer and floating point Rect and Point types. The integer
-  types are for situatuions where you want exact pixel coordinates, like clip
-  rectangles or widget bounds etc.. The float tyes are more general 2D vectoral
-  primatives.
+  This module provides basic 2D geometric primates.
 
   Copyright: Chris Jones
   License: Boost Software License, Version 1.0
@@ -12,19 +7,17 @@
 
   General features...
 
-  asPath can be used on Rect and RoundRect to get a Path type that can
-  be used with the path adaptors, and assigned to a path. EG..
+  asPath can be used to get a lazy iterator that returns the shape as a path
+  that can be used with the path adaptors, and assigned to a path. EG..
 
+  ---
   auto rect = RoundRect!float(10,10,20,20,3,3);
-  rasterizer.addPath(rect.asPath);
+  rasterizer.addPath(rect.asPath.offset(100,100));
   Path!float path;
   path.append(rect.asPath.retro);
-
-  intersect(rect,rect) -- intersection of two rects
-  combine(rect,rect) -- union of two rects
+  ---
 
 */
-
 
 module dg2d.geometry;
 
@@ -64,6 +57,9 @@ struct IPoint
 
 /**
   Integer 2D rectangle
+ 
+  This is typically for defining rectanges on strict pixel boundaries. Like
+  clip regions, or Window position, etc. 
 */
 
 struct IRect
@@ -90,16 +86,38 @@ struct IRect
     {
         return bottom-top;
     }
-
-    IPoint center()
-    {
-        return IPoint((right+left)/2,(top+bottom)/2);
-    }
-   
+  
     bool isEmpty()
     {
         return ((left >= right) || (top >= bottom));
     }
+}
+
+/** Offset IRect */
+
+IRect offset(IRect rect, int x, int y)
+{
+    return IRect(rect.left+x, rect.top+y, rect.right+x, rect.bottom+y);
+}
+
+/** Insection of two IRects */
+
+IRect intersect(IRect a, IRect b)
+{
+    return IRect(
+        max(a.left, b.left), max(a.top, b.top),
+        min(a.right, b.right), min(a.bottom, b.bottom)
+        );
+}
+
+/** union of two IRects */
+
+IRect combine(IRect a, IRect b)
+{
+    return IRect(
+        min(a.left, b.left), min(a.top, b.top),
+        max(a.right, b.right), max(a.bottom, b.bottom)
+        );
 }
 
 /**
@@ -149,6 +167,46 @@ struct Point(T)
     {
         mixin("return Point!T(x "~op~" rhs, y "~op~"rhs);");
     }
+
+    Point!T offset(T x, T y)
+    {
+        return Point!T(this.x+x, this.y+y);
+    }
+
+    Point!T scale(T sx, T sy)
+    {
+        return Point!T(this.x*x, this.y*y);
+    }
+
+    Point!T scale(T sx, T sy, T focus_x, T focus_y)
+    {
+        return Point!T((this.x-focus_x)*sx+focus_x, (this.y-focus_y)*sy+focus_y);
+    }
+
+    // need to have ones that pass in sin/cos values rather than call math funcs each time
+    // as they are very slow
+
+    Point!T rotate(T angle) 
+    {
+        import std.math;
+
+        T sina = cast(T) sin(angle*2*PI/360);
+        T cosa = cast(T) cos(angle*2*PI/360);
+        return Point!T(x*cosa-y*sina, x*sina+y*cosa);
+    }
+
+    Point!T rotate(T angle, T focus_x, T focus_y)
+    {
+        import std.math;
+
+        T sina = cast(T) sin(angle*2*PI/360);
+        T cosa = cast(T) cos(angle*2*PI/360);
+        return Point!T(
+            (x-focus_x)*cosa-(y-focus_y)*sina+focus_x,
+            (x-focus_x)*sina+(y-focus_y)*cosa+focus_y
+            );
+    }
+
 }
 
 /**
@@ -162,13 +220,16 @@ struct Point(T)
 
   some functions rely on the coordinates being ordered, should
   maybe add checks to either ensure ordering when needed or prevent
-  it when it might occur?
+  coords becoming unordered ?
 */
 
 struct Rect(T)
     if (is(T == float) || is(T == double))
 {
-    T x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    T x0 = 0;
+    T y0 = 0;
+    T x1 = 0;
+    T y1 = 0;
 
     this(T x0, T y0, T x1, T y1)
     {
@@ -229,7 +290,6 @@ struct Rect(T)
         struct RectAsPath
         {
         public:
-        
             Point!T opIndex(size_t idx)
             {
                 assert(idx < 5);
@@ -243,19 +303,15 @@ struct Rect(T)
                     default: assert(0);
                 }
             }
-
             PathCmd cmd(size_t idx)
             {
                 if (idx == 0) return PathCmd.move;
                 return PathCmd.line;
             }
-
             size_t length() { return 5; }
             void* source() { return &this; }
-            bool inPlace() { return true; }
-        
+            bool inPlace() { return true; }      
         private:
-
             Rect!T* m_rect;
         }
 
@@ -266,18 +322,6 @@ struct Rect(T)
 enum bool isRect(T) = (is(T == Rect!float) || is(T == Rect!double));
 
 enum bool isRoundRect(T) = (is(T == RoundRect!float) || is(T == RoundRect!double));
-
-/**
-  intersection of two IRect
-*/
-
-IRect intersect(ref IRect a, ref IRect b)
-{
-    return IRect(
-        max(a.left, b.left), max(a.top, b.top),
-        min(a.right, b.right), min(a.bottom, b.bottom)
-        );
-}
 
 /**
   intersection of two Rects or RoundRect
@@ -293,18 +337,6 @@ auto intersect(T)(ref T a, ref T b)
 }
 
 /**
-  union of two IRect
-*/
-
-IRect combine(ref IRect a, ref IRect b)
-{
-    return IRect(
-        min(a.left, b.left), min(a.top, b.top),
-        max(a.right, b.right), max(a.bottom, b.bottom)
-        );
-}
-
-/**
   union of two Rect or RoundRect
 */
 
@@ -315,20 +347,6 @@ auto combine(T)(ref T a, ref T b)
         min(a.x0, b.x0), min(a.y0, b.y0),
         max(a.x1, b.x1), max(a.y1, b.y1)
         );
-}
-
-/**
-  offset IRect
-*/
-
-IRect offset(IRect rect, int x, int y)
-{
-    IRect r;
-    r.left = rect.left + x;
-    r.top = rect.top + y;
-    r.right = rect.right + x;
-    r.bottom = rect.bottom + y;
-    return r;
 }
 
 /**
@@ -357,12 +375,6 @@ auto scale(T,Q)(T rect, Q x, Q y)
 // Should it ensure the inset rect is still ordered?
 // Should it prevent it from becoming unordered?
 
-IRect inset(IRect rect, int delta)
-{
-    return IRect(rect.left + delta, rect.top + delta,
-        rect.right - delta, rect.bottom - delta);
-}
-
 T inset(T,Q)(T rect, Q delta)
     if(isRect!T)
 {
@@ -370,7 +382,7 @@ T inset(T,Q)(T rect, Q delta)
         rect.x1 - delta,rect.y1 - delta);
 }
 
-/** outset RoundRect, if you adjustCorners the inset rect will have
+/** inset RoundRect, if you 'adjustCorners' the inset rect will have
 corners that try to maintain equal distance from the source 
 rectangle, (eventually they get too small) */
 
@@ -396,16 +408,7 @@ T inset(T,Q)(T rect, Q delta, bool adjustCorners = false)
             r.yRad[i] = rect.yRad[i];
         }
     }
-
     return r;
-}
-
-/** outset IRect */
-
-IRect outset(IRect rect, int delta)
-{
-    return IRect(rect.left - delta, rect.top - delta,
-        rect.right + delta, rect.bottom + delta);
 }
 
 /** outset Rect */
@@ -560,8 +563,6 @@ struct RoundRect(T)
 
     auto asPath()
     {
-        enum double v = 1-0.551915324;
-
         enum PathCmd[17] cmdlut = [
             PathCmd.move,PathCmd.line,PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
             PathCmd.line,PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
@@ -579,20 +580,20 @@ struct RoundRect(T)
                 {
                     case 0: return Point!T(m_rect.x0+m_rect.xRad[0],m_rect.y0);
                     case 1: return Point!T(m_rect.x1-m_rect.xRad[1],m_rect.y0);
-                    case 2: return Point!T(m_rect.x1-m_rect.xRad[1]*v,m_rect.y0);
-                    case 3: return Point!T(m_rect.x1,m_rect.y0+m_rect.yRad[1]*v);
+                    case 2: return Point!T(m_rect.x1-m_rect.xRad[1]*CBEZ1,m_rect.y0);
+                    case 3: return Point!T(m_rect.x1,m_rect.y0+m_rect.yRad[1]*CBEZ1);
                     case 4: return Point!T(m_rect.x1,m_rect.y0+m_rect.yRad[1]);
                     case 5: return Point!T(m_rect.x1,m_rect.y1-m_rect.yRad[2]);
-                    case 6: return Point!T(m_rect.x1,m_rect.y1-m_rect.yRad[2]*v);
-                    case 7: return Point!T(m_rect.x1-m_rect.xRad[2]*v,m_rect.y1);
+                    case 6: return Point!T(m_rect.x1,m_rect.y1-m_rect.yRad[2]*CBEZ1);
+                    case 7: return Point!T(m_rect.x1-m_rect.xRad[2]*CBEZ1,m_rect.y1);
                     case 8: return Point!T(m_rect.x1-m_rect.xRad[2],m_rect.y1);
                     case 9: return Point!T(m_rect.x0+m_rect.xRad[3],m_rect.y1);
-                    case 10: return Point!T(m_rect.x0+m_rect.xRad[3]*v,m_rect.y1);
-                    case 11: return Point!T(m_rect.x0,m_rect.y1-m_rect.yRad[3]*v);
+                    case 10: return Point!T(m_rect.x0+m_rect.xRad[3]*CBEZ1,m_rect.y1);
+                    case 11: return Point!T(m_rect.x0,m_rect.y1-m_rect.yRad[3]*CBEZ1);
                     case 12: return Point!T(m_rect.x0,m_rect.y1-m_rect.yRad[3]);
                     case 13: return Point!T(m_rect.x0,m_rect.y0+m_rect.yRad[0]);
-                    case 14: return Point!T(m_rect.x0,m_rect.y0+m_rect.yRad[0]*v);
-                    case 15: return Point!T(m_rect.x0+m_rect.xRad[0]*v,m_rect.y0);
+                    case 14: return Point!T(m_rect.x0,m_rect.y0+m_rect.yRad[0]*CBEZ1);
+                    case 15: return Point!T(m_rect.x0+m_rect.xRad[0]*CBEZ1,m_rect.y0);
                     case 16: return Point!T(m_rect.x0+m_rect.xRad[0],m_rect.y0);
                     default: assert(0);
                 }
@@ -616,3 +617,225 @@ struct RoundRect(T)
         return RectAsPath(&this);
     }
 }
+
+/**
+  2D line segment
+*/
+
+struct Line(T)
+    if (is(T == float) || is(T == double))
+{
+    T x0 = 0;
+    T y0 = 0;
+    T x1 = 0;
+    T y1 = 0;
+
+    this(T x0, T y0, T x1, T y1)
+    {
+        this.x0 = x0;
+        this.y0 = y0;
+        this.x1 = x1;
+        this.y1 = y1;
+    }
+
+    T dx()
+    {
+        return x1-x0;
+    }
+    
+    T dy()
+    {
+        return y1-y0;
+    }
+
+    T length()
+    {
+        return sqrt(sqr(width)+sqr(height));
+    }
+
+    Point!T midPoint()
+    {
+        return Point!T((x0+x1)/2,(y0+y1)/2);
+    }
+/*
+    Rect!T opBinary(string op)(Point rhs)
+        if (op.among!("+", "-", "*"))
+    {
+        mixin("return Line!T(x0 "~op~" rhs.x, y0 "~op~"rhs.y, x1 "
+          ~op~" rhs.x, y1 "~op~"rhs.y);");
+    }
+
+    Rect!T opBinary(string op, F)(F[2] rhs)
+        if (op.among!("+", "-", "*") && isFloatOrDouble(F))
+    {
+        mixin("return Line!T(x0 "~op~" rhs[0], y0 "~op~"rhs[1], x1 "
+          ~op~" rhs[0], y1 "~op~"rhs[1]);");
+    }
+
+    Rect!T opBinary(string op, F)(F rhs)
+        if (op.among!("+", "-", "*") && (is(F == float) || is(F == double)))
+    {
+        mixin("return Line!T(x0 "~op~" rhs, y0 "~op~"rhs, x1 "
+          ~op~" rhs, y1 "~op~"rhs);");
+    }
+*/
+}
+
+/**
+  2D circle
+*/
+
+struct Circle(T)
+    if (is(T == float) || is(T == double))
+{
+    T x0 = 0;
+    T y0 = 0;
+    T radius = 0;
+
+    this(T x0, T y0, T radius)
+    {
+        this.x0 = x0;
+        this.y0 = y0;
+        this.radius = radius;
+    }
+/*
+    Rect!T opBinary(string op)(Point rhs)
+        if (op.among!("+", "-", "*"))
+    {
+        mixin("return Line!T(x0 "~op~" rhs.x, y0 "~op~"rhs.y, x1 "
+          ~op~" rhs.x, y1 "~op~"rhs.y);");
+    }
+
+    Rect!T opBinary(string op, F)(F[2] rhs)
+        if (op.among!("+", "-", "*") && isFloatOrDouble(F))
+    {
+        mixin("return Line!T(x0 "~op~" rhs[0], y0 "~op~"rhs[1], x1 "
+          ~op~" rhs[0], y1 "~op~"rhs[1]);");
+    }
+
+    Rect!T opBinary(string op, F)(F rhs)
+        if (op.among!("+", "-", "*") && (is(F == float) || is(F == double)))
+    {
+        mixin("return Line!T(x0 "~op~" rhs, y0 "~op~"rhs, x1 "
+          ~op~" rhs, y1 "~op~"rhs);");
+    }
+*/
+
+    auto asPath()
+    {
+        enum PathCmd[17] cmdlut = [
+            PathCmd.move,PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
+            PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
+            PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
+            PathCmd.cubic,PathCmd.cubic,PathCmd.cubic];
+
+        struct CircleAsPath
+        {
+        public:
+        
+            Point!T opIndex(size_t idx)
+            {
+                assert(idx < 13);
+                switch(idx)
+                {
+                    case 0: return Point!T(m_circle.x0,m_circle.y0+m_circle.radius);
+                    case 1: return Point!T(m_circle.x0+m_circle.radius*CBEZ2,m_circle.y0+m_circle.radius);
+                    case 2: return Point!T(m_circle.x0+m_circle.radius,m_circle.y0+m_circle.radius*CBEZ2);
+                    case 3: return Point!T(m_circle.x0+m_circle.radius,m_circle.y0);
+                    case 4: return Point!T(m_circle.x0+m_circle.radius,m_circle.y0-m_circle.radius*CBEZ2);
+                    case 5: return Point!T(m_circle.x0+m_circle.radius*CBEZ2,m_circle.y0-m_circle.radius);
+                    case 6: return Point!T(m_circle.x0,m_circle.y0-m_circle.radius);
+                    case 7: return Point!T(m_circle.x0-m_circle.radius*CBEZ2,m_circle.y0-m_circle.radius);
+                    case 8: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0-m_circle.radius*CBEZ2);
+                    case 9: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0);
+                    case 10: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0+m_circle.radius+CBEZ2);
+                    case 11: return Point!T(m_circle.x0-m_circle.radius*CBEZ2,m_circle.y0+m_circle.radius);
+                    case 12: return Point!T(m_circle.x0,m_circle.y0+m_circle.radius);
+                    default: assert(0);
+                }
+            }
+
+            PathCmd cmd(size_t idx)
+            {
+                assert(idx < 13);
+                return cmdlut[idx];
+            }
+
+            size_t length() { return 13; }
+            void* source() { return &this; }
+            bool inPlace() { return true; }
+        
+        private:
+
+            Circle!T* m_circle;
+        }
+
+        return CircleAsPath(&this);
+    }
+
+}
+
+/**
+  2D Elipse
+  x0,y0 is the center of the elipse
+  x1,y1 is the radius at 0 degrees
+  x2,y2 is the radius at 90 degrees
+
+  if you have a circle of radius 1 at the origin, then imagine it transformed so that..
+  (0,0)-->(x0,y0)
+  (1,0)-->(x1,y1)
+  (0,1)-->(x2,y2)
+*/
+
+/*
+ maybe need simple elipse, origin,width,height, and freeform elipse, ??
+*/
+
+struct Elipse(T)
+    if (is(T == float) || is(T == double))
+{
+    T x0 = 0;
+    T y0 = 0;
+    T x1 = 0;
+    T y1 = 0;
+    T x2 = 0;
+    T y2 = 0;
+
+    this(T x0, T y0, T x1, T y1, T x2, T y2)
+    {
+        this.x0 = x0;
+        this.y0 = y0;
+        this.x1 = x1;
+        this.y1 = y1;
+        this.x2 = x2;
+        this.y2 = y2;
+    }
+
+/*
+    Rect!T opBinary(string op)(Point rhs)
+        if (op.among!("+", "-", "*"))
+    {
+        mixin("return Line!T(x0 "~op~" rhs.x, y0 "~op~"rhs.y, x1 "
+          ~op~" rhs.x, y1 "~op~"rhs.y);");
+    }
+
+    Rect!T opBinary(string op, F)(F[2] rhs)
+        if (op.among!("+", "-", "*") && isFloatOrDouble(F))
+    {
+        mixin("return Line!T(x0 "~op~" rhs[0], y0 "~op~"rhs[1], x1 "
+          ~op~" rhs[0], y1 "~op~"rhs[1]);");
+    }
+
+    Rect!T opBinary(string op, F)(F rhs)
+        if (op.among!("+", "-", "*") && (is(F == float) || is(F == double)))
+    {
+        mixin("return Line!T(x0 "~op~" rhs, y0 "~op~"rhs, x1 "
+          ~op~" rhs, y1 "~op~"rhs);");
+    }
+*/
+}
+
+private:
+
+enum double CBEZ1 = 0.448084676; // coeficient for cirlces made from beziers
+enum double CBEZ2 = 0.551915324; // coeficient for cirlces made from beziers

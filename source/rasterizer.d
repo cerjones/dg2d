@@ -1,4 +1,6 @@
-/*
+/**
+  This module contains the rasterizer type. 
+
   Copyright Chris Jones 2020.
   Distributed under the Boost Software License, Version 1.0.
   See accompanying file Licence.txt or copy at...
@@ -9,6 +11,7 @@ module dg2d.rasterizer;
 
 import dg2d.misc;
 import dg2d.path;
+import dg2d.geometry;
 
 import std.traits;
 
@@ -220,6 +223,13 @@ class Rasterizer
         m_subpy = 0;
         m_fprevx = 0;
         m_fprevy = 0;
+    }
+
+    /** ditto */
+
+    void initialise(IRect rect)
+    {
+        initialise(rect.left, rect.top, rect.right, rect.bottom);
     }
 
     // rasterize

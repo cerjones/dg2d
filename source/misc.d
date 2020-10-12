@@ -1,4 +1,6 @@
-/*
+/**
+  Miscelanious stuff.
+
   Copyright Chris Jones 2020.
   Distributed under the Boost Software License, Version 1.0.
   See accompanying file Licence.txt or copy at...
@@ -54,6 +56,11 @@ void swap(T)(ref T a, ref T b)
     b = tmp;
 }
 
+T sqr(T)(T x)
+{
+    return x*x;
+}
+
 // round x up to next multiple of q
 
 uint roundUpTo(uint x, uint q)
@@ -62,7 +69,7 @@ uint roundUpTo(uint x, uint q)
     return (tmp) ? x - tmp + q : x;
 }
 
-// round x up to next multiple of q
+// round x up to next power of 2
 
 uint roundUpPow2(uint x)
 {
@@ -98,6 +105,10 @@ bool isPow2(int x)
 
 enum bool isFloatOrDouble(T) = (is(T == float) || is(T == double));
 
+// is float, double or int
+
+enum bool isFloatDoubleInt(T) = (is(T == float) || is(T == double) || is (T == int));
+
 // load file into malloced memory
 
 ubyte[] loadFileMalloc(string filename)
@@ -123,7 +134,7 @@ ubyte[] loadFileMalloc(string filename)
     }
 }
 
-/*
+/**
   nextSetBit, searches the bit mask for the next set bit. 
 
   mask  - array that holds the bits
@@ -276,6 +287,33 @@ public:
     {
         m_block = m_root;
         m_pos = (m_root) ? 0 : uint.max;
+    }
+}
+
+/*
+  readCycleCounter
+*/
+
+version(LDC)
+{
+    long readCycleCounter()
+    {
+        import ldc.intrinsics: readcyclecounter;
+        return readcyclecounter;
+    }
+}
+else version(DigitalMars)
+{
+    long readCycleCounter()
+    {
+        long result;
+        asm nothrow @nogc pure
+        {
+            rdtscp;
+            mov dword ptr [result+0], EAX;
+            mov dword ptr [result+4], EDX;
+        }
+        return result;
     }
 }
 

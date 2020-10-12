@@ -4,7 +4,7 @@ Scanline coverage is stored in differentiated form. Rather than storing the actu
 
 Because integration and differentiation are linear we can use a single buffer for all the edges crossing a given scanline. 
 
-The scanline delta is in integer 17:15 format. This was simply chossen to take advantage of the "packssdw" instruction in x86 SIMD for saturating the 32 bit int down to 16. If the cpu has SSE4 i think there are other instruction that could be used instead.
+The scanline delta is in signed integer 17:15 format. This was chosen to take advantage of some features of the x86 SSE instructions.
 
 Once integrated you basicaly have a fixed point winding value for that pixel. That is then converted into coverage depending on the winding rule.
 

@@ -3,11 +3,11 @@ Paint mapping.
 
 The paints can be grouped depending on how many dimensions they have.
 
-Solid color, has zero dimentions, it is the same everywhere.
+Solid color, has zero dimensions, it is the same everywhere.
 Linear gradient, has one dimension, it varies only along one axis
 Radial gradient, texture fill, are two dimensional, they vary along two axes
 
-For radial and anglular you convert the two distances along the axes to either a radius or an angle. For texture fill they provide a offset into the texture.
+For radial and anglular you convert the distances along each axes to either a radius or an angle. For texture fill they provide a offset into the texture.
 
 1 dimensional.
 ==============
@@ -55,6 +55,78 @@ t = (x2-x0)*stepx + (y2-y0)*stepy
 
 2 dimensions.
 =============
+
+For this you define two axes and calculate 't' seprately for each. So...
+
+axis 0 :
+x0,y0 --> x1,y1
+w0 = x1-x0
+h0 = y1-y0
+x = x0 + t0 * w0
+y = y0 + t0 * h0
+
+axis 1 :
+x0,y0 --> x2,y2
+w1 = x2-x0
+h1 = y2-y0
+x = x0 + t1 * w1
+y = y0 + t1 * h1
+
+point of interest ==> qx,qy
+
+we need to draw a line through x,y, parallel to axis 1, and evaluate 't0' where that line intersects with axis 0
+
+x = qx + u * w1
+y = qy + u * h1
+
+set those equal to the equation for axis 0
+
+i) qx + u * w1 = x0 + t0 * w0
+ii) qy + u * h1 = y0 + t0 * h0
+
+rearange ii) and sub into i), then rearange to get t0
+
+u  = (y0 + t0 * h0 - qy) / h1
+
+qx*h1 + w1 * (y0 + t0 * h0 - qy) = x0*h1 + t0*w0*h1
+qx*h1 + w1*y0 + w1*t0 * h0 - w1*qy = x0*h1 + t0*w0*h1
+w1*t0 * h0 - t0*w0*h1 = x0*h1 - qx*h1 - w1*y0 + w1*qy
+t0(w1*h0 - w0*h1) = h1(x0-qx) + w1(qy-y0)
+t0 = (h1(x0-qx) + w1(qy-y0)) /  (w1*h0 - w0*h1)
+
+
+
+
+and we need to draw a line through x,y, parallel to axis 0, and evaluate 't1' where that line intersects with axis 1
+
+x = qx + u * w0
+y = qy + u * h0
+
+set those equal to the equation for axis 1
+
+i) qx + u * w0 = x0 + t1 * w1
+ii) qy + u * h0 = y0 + t1 * h1
+
+rearange ii) and sub into i), then rearange to get t1
+
+u  = (y0 + t1 * h1 - qy) / h0
+
+qx + w0 * (y0 + t1 * h1 - qy) / h0 = x0 + t1 * w1
+qx*h0 + w0 * (y0 + t1 * h1 - qy) = x0*h0 + t1 * w1*h0
+qx*h0 + w0*y0 + w0*t1*h1 - w0*qy = x0*h0 + t1 * w1*h0
+w0*t1*h1- t1 * w1*h0= x0*h0 - qx*h0 - w0*y0 + w0*qy
+t1(w0*h1 - w1*h0) = h0(x0-qx) + w0(qy-y0)
+t1 = (h0(x0-qx) + w0(qy-y0)) / (w0*h1 - w1*h0)
+
+
+
+
+
+
+
+
+
+
 
 For this you just define two axes and calculate 't' seprately for each. So...
 

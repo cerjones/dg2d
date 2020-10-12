@@ -1,10 +1,9 @@
 /**
   Blitter for painting angular gradients.
 
-  Copyright Chris Jones 2020.
-  Distributed under the Boost Software License, Version 1.0.
-  See accompanying file Licence.txt or copy at...
-  https://www.boost.org/LICENSE_1_0.txt
+  Copyright: Chris Jones
+  License: Boost Software License, Version 1.0
+  Authors: Chris Jones
 */
 
 module dg2d.angularblit;
@@ -17,13 +16,11 @@ import dg2d.blitex;
 /**
    Angular gradient blitter struct.
 
-   You set up the properties and pass the BlitFunc to the rasterizer.
-
    ---
    auto ablit = AngularBlit(m_pixels,m_stride,m_height);
    ablit.setPaint(grad, wr, RepeatMode.Mirror, 4.0f);
    ablit.setElipse(x0,y0,x1,y1,x2,y2);
-   m_rasterizer.rasterize(ablit.getBlitFunc);
+   rasterizer.rasterize(ablit.getBlitFunc);
    ---
 */
 
@@ -69,7 +66,7 @@ struct AngularBlit
     though any affine transform.
     */
 
-    void setElipse(float x0, float y0, float x1, float y1, float x2, float y2)
+    void setCoords(float x0, float y0, float x1, float y1, float x2, float y2)
     {
         xctr = x0;
         yctr = y0;
@@ -92,9 +89,9 @@ struct AngularBlit
     (x1,y1) is radius at 0 degrees
     */
 
-    void setCircle(float x0, float y0, float x1, float y1)
+    void setCoords(float x0, float y0, float x1, float y1)
     {
-        setElipse(x0,y0,x1,y1,x0-y1+y0,y0+x1-x0);
+        setCoords(x0,y0,x1,y1,x0-y1+y0,y0+x1-x0);
     }
 
     /** returns a BlitFunc for use by the rasterizer */
@@ -178,11 +175,11 @@ private:
 
                 // We can skip the span
 
-                if (cover == 0)
+                if (cover < 0x100)
                 {
-                    __m128 tsl = _mm_set1_ps(nsb-bpos);
-                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(tsl,xmStep0));
-                    xmT1 = _mm_add_ps(xmT1, _mm_mul_ps(tsl,xmStep1));
+                    __m128 xskip = _mm_set1_ps(nsb-bpos);
+                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(xskip,xmStep0));
+                    xmT1 = _mm_add_ps(xmT1, _mm_mul_ps(xskip,xmStep1));
                     bpos = nsb;
                 }
 
@@ -220,7 +217,7 @@ private:
 
                 else
                 {
-                    __m128i tqcvr = _mm_set1_epi16 (cast(ushort) cover);
+                    __m128i xmcover = _mm_set1_epi16 (cast(ushort) cover);
 
                     uint* ptr = &dest[bpos*4];
                     uint* end = &dest[nsb*4];
@@ -229,44 +226,58 @@ private:
                     {
                         __m128 grad = gradOfSorts(xmT0,xmT1);
 
-                        __m128i d0 = _mm_loadu_si64 (ptr);
-                        d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                        __m128i d1 = _mm_loadu_si64 (ptr+2);
-                        d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                        // load destination pixels
+
+                        __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                        __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                        d0 = _mm_unpacklo_epi8(d0,d0);
+
+                        // evauluate angle
 
                         __m128 poly = polyAprox(grad);
                         poly = fixupQuadrant(poly,xmT0,xmT1)*lutscale;
                         __m128i ipos = _mm_cvtps_epi32(poly);
 
-                        ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
-
-                        __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                        __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                        c0 = _mm_unpacklo_epi32 (c0, tnc);
-                        c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                        __m128i a0 = _mm_broadcast_alpha(c0);
-                        a0 = _mm_mulhi_epu16(a0, tqcvr);
-                       
-                        __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                        tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                        c1 = _mm_unpacklo_epi32 (c1, tnc);
-                        c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                        __m128i a1 = _mm_broadcast_alpha(c1);
-                        a1 = _mm_mulhi_epu16(a1, tqcvr);
-
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
+
+                        ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
+
+                        // load grad colours and alpha
+
+                        __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
+                        __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                        c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                        c0 = _mm_unpacklo_epi8 (c0, c0);
+
+                        __m128i a0 = _mm_mulhi_epu16(c0,xmcover);
+                       
+                        __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
+                        __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                        c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                        c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                        __m128i a1 = _mm_mulhi_epu16(c1,xmcover);
+
+                        // unpack alpha
+
+                        a0 = _mm_shufflelo_epi16!255(a0);
+                        a0 = _mm_shufflehi_epi16!255(a0);
+                        a1 = _mm_shufflelo_epi16!255(a1);
+                        a1 = _mm_shufflehi_epi16!255(a1);
 
                        // alpha*source + dest - alpha*dest
 
                         c0 = _mm_mulhi_epu16 (c0,a0);
                         c1 = _mm_mulhi_epu16 (c1,a1);
-                        c0 = _mm_adds_epi16 (c0,d0);
-                        c1 = _mm_adds_epi16 (c1,d1);
+                        c0 = _mm_add_epi16 (c0,d0);
+                        c1 = _mm_add_epi16 (c1,d1);
                         d0 = _mm_mulhi_epu16 (d0,a0);
                         d1 = _mm_mulhi_epu16 (d1,a1);
-                        c0 =  _mm_subs_epi16 (c0, d0);
-                        c1 =  _mm_subs_epi16 (c1, d1);
+                        c0 =  _mm_sub_epi16 (c0,d0);
+                        c1 =  _mm_sub_epi16 (c1,d1);
+                        c0 = _mm_srli_epi16 (c0,8);
+                        c1 = _mm_srli_epi16 (c1,8);
 
                         d0 = _mm_packus_epi16 (c0,c1);
 
@@ -291,19 +302,21 @@ private:
 
                 // Integrate delta values
 
-                __m128i tqw = _mm_load_si128(cast(__m128i*)dlptr);
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!4(tqw)); 
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!8(tqw)); 
-                tqw = _mm_add_epi32(tqw, xmWinding); 
-                xmWinding = _mm_shuffle_epi32!255(tqw);  
+                __m128i idv = _mm_load_si128(cast(__m128i*)dlptr);
+                idv = _mm_add_epi32(idv, _mm_slli_si128!4(idv)); 
+                idv = _mm_add_epi32(idv, _mm_slli_si128!8(idv)); 
+                idv = _mm_add_epi32(idv, xmWinding); 
+                xmWinding = _mm_shuffle_epi32!255(idv);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
+
+                // eval angle
 
                 __m128 poly = polyAprox(grad);
                 poly = fixupQuadrant(poly,xmT0,xmT1)*lutscale;
 
                 // calculate coverage from winding
 
-                __m128i tcvr = calcCoverage!wr(tqw);
+                __m128i xmcover = calcCoverage32!wr(idv);
 
                 // convert grad pos to integer
 
@@ -311,46 +324,52 @@ private:
 
                 // Load destination pixels
 
-                __m128i d0 = _mm_loadu_si64 (ptr);
-                d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                __m128i d1 = _mm_loadu_si64 (ptr+2);
-                d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                d0 = _mm_unpacklo_epi8(d0,d0);
 
                 xmT0 = xmT0 + xmStep0;
                 xmT1 = xmT1 + xmStep1;
 
-                // load grad colors
-
                 ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
-                tcvr = _mm_unpacklo_epi16 (tcvr, tcvr);
-                __m128i tcvr2 = _mm_unpackhi_epi32 (tcvr, tcvr);
-                tcvr = _mm_unpacklo_epi32 (tcvr, tcvr);
+                // load grad colors
 
                 __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                c0 = _mm_unpacklo_epi32 (c0, tnc);
-                c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                __m128i a0 = _mm_broadcast_alpha(c0);
-                a0 = _mm_mulhi_epu16(a0, tcvr);
+                __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                c0 = _mm_unpacklo_epi8 (c0, c0);
+
+                __m128i a0 = _mm_unpacklo_epi32(xmcover,xmcover);
+                a0 = _mm_mulhi_epu16(a0, c0);
 
                 __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                c1 = _mm_unpacklo_epi32 (c1, tnc);
-                c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                __m128i a1 = _mm_broadcast_alpha(c1);
-                a1 = _mm_mulhi_epu16(a1, tcvr2);
+                __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                __m128i a1 = _mm_unpackhi_epi32(xmcover,xmcover);
+                a1 = _mm_mulhi_epu16(a1, c1);
+
+                // unpack alpha
+
+                a0 = _mm_shufflelo_epi16!255(a0);
+                a0 = _mm_shufflehi_epi16!255(a0);
+                a1 = _mm_shufflelo_epi16!255(a1);
+                a1 = _mm_shufflehi_epi16!255(a1);
 
                 // alpha*source + dest - alpha*dest
 
                 c0 = _mm_mulhi_epu16 (c0,a0);
                 c1 = _mm_mulhi_epu16 (c1,a1);
-                c0 = _mm_adds_epi16 (c0,d0);
-                c1 = _mm_adds_epi16 (c1,d1);
+                c0 = _mm_add_epi16 (c0,d0);
+                c1 = _mm_add_epi16 (c1,d1);
                 d0 = _mm_mulhi_epu16 (d0,a0);
                 d1 = _mm_mulhi_epu16 (d1,a1);
-                c0 =  _mm_subs_epi16 (c0, d0);
-                c1 =  _mm_subs_epi16 (c1, d1);
+                c0 =  _mm_sub_epi16 (c0, d0);
+                c1 =  _mm_sub_epi16 (c1, d1);
+                c0 = _mm_srli_epi16 (c0,8);
+                c1 = _mm_srli_epi16 (c1,8);
 
                 d0 = _mm_packus_epi16 (c0,c1);
 
@@ -388,15 +407,13 @@ private:
 
 private:
 
-immutable __m128i ABSMASK = 0x7fffffff;
-immutable __m128i SGNMASK = 0x80000000;
 immutable __m128 MINSUM = 0.001;
 immutable __m128 FQTWO = 0.5;
 
 __m128 gradOfSorts(__m128 x, __m128 y)
 {
-    __m128 absx = _mm_and_ps(x, cast(__m128) ABSMASK);
-    __m128 absy = _mm_and_ps(y, cast(__m128) ABSMASK);
+    __m128 absx = _mm_and_ps(x, cast(__m128) XMABSMASK);
+    __m128 absy = _mm_and_ps(y, cast(__m128) XMABSMASK);
     __m128 sum = _mm_add_ps(absx,absy);
     __m128 diff = _mm_sub_ps(absx,absy);
     sum = _mm_max_ps(sum,MINSUM);
@@ -419,6 +436,7 @@ __m128 polyAprox(__m128 g)
 
 __m128 fixupQuadrant(__m128 pos, __m128 t0, __m128 t1)
 {
-    pos = cast(__m128) (cast(__m128i) pos ^ ((cast(__m128i) t0 ^ cast(__m128i) t1) & SGNMASK));
-    return pos + cast(__m128) (_mm_srai_epi32(cast(__m128i)t0,31) & cast(__m128i) FQTWO);
+//    pos = cast(__m128) (cast(__m128i) pos ^ ((cast(__m128i) t0 ^ cast(__m128i) t1) & XMSIGNMASK));
+//    return pos + cast(__m128) (_mm_srai_epi32(cast(__m128i)t0,31) & cast(__m128i) FQTWO);
+return pos;
 }

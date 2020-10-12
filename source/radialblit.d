@@ -1,4 +1,4 @@
-/*
+/**
   Blitter for painting radial gradients.
 
   Copyright Chris Jones 2020.
@@ -68,7 +68,7 @@ struct RadialBlit
     though any affine transform.
     */
 
-    void setElipse(float x0, float y0, float x1, float y1, float x2, float y2)
+    void setCoords(float x0, float y0, float x1, float y1, float x2, float y2)
     {
         xctr = x0;
         yctr = y0;
@@ -91,9 +91,9 @@ struct RadialBlit
     (x1,y1) is radius at 0 degrees
     */
 
-    void setCircle(float x0, float y0, float x1, float y1)
+    void setCoords(float x0, float y0, float x1, float y1)
     {
-        setElipse(x0,y0,x1,y1,x0-y1+y0,y0+x1-x0);
+        setCoords(x0,y0,x1,y1,x0-y1+y0,y0+x1-x0);
     }
 
     /** returns a BlitFunc for use by the rasterizer */
@@ -146,7 +146,6 @@ private:
         // XMM constants
 
         immutable __m128i XMZERO = 0;
-        immutable __m128i XMFFFF = 0xFFFFFFFF;
 
         // paint variables
 
@@ -176,11 +175,11 @@ private:
 
                 // We can skip the span
 
-                if (cover == 0)
+                if (cover < 0x100)
                 {
-                    __m128 tsl = _mm_set1_ps(nsb-bpos);
-                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(tsl,xmStep0));
-                    xmT1 = _mm_add_ps(xmT1, _mm_mul_ps(tsl,xmStep1));
+                    __m128 xskip = _mm_set1_ps(nsb-bpos);
+                    xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(xskip,xmStep0));
+                    xmT1 = _mm_add_ps(xmT1, _mm_mul_ps(xskip,xmStep1));
                     bpos = nsb;
                 }
 
@@ -193,11 +192,11 @@ private:
 
                     while (ptr < end)
                     {
-                        __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
-                        rad = _mm_sqrt_ps(rad);
+                        __m128 xmRad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                        xmRad = _mm_sqrt_ps(xmRad);
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
-                        __m128i ipos = _mm_cvtps_epi32 (rad);
+                        __m128i ipos = _mm_cvtps_epi32 (xmRad);
                         ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
                         ptr[0] = lut[ipos.array[0]];
@@ -215,50 +214,62 @@ private:
 
                 else
                 {
-                    __m128i tqcvr = _mm_set1_epi16 (cast(ushort) cover);
+                    __m128i xmcover = _mm_set1_epi16 (cast(ushort) cover);
 
                     uint* ptr = &dest[bpos*4];
                     uint* end = &dest[nsb*4];
 
                     while (ptr < end)
                     {
-                        __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                        __m128 xmRad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
                         xmT0 = xmT0 + xmStep0;
                         xmT1 = xmT1 + xmStep1;
-                        rad = _mm_sqrt_ps(rad);
+                        xmRad = _mm_sqrt_ps(xmRad);
 
-                        __m128i d0 = _mm_loadu_si64 (ptr);
-                        d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                        __m128i d1 = _mm_loadu_si64 (ptr+2);
-                        d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                        // load destination pixels
 
-                        __m128i ipos = _mm_cvtps_epi32 (rad);
+                        __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                        __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                        d0 = _mm_unpacklo_epi8(d0,d0);
+
+                        __m128i ipos = _mm_cvtps_epi32 (xmRad);
                         ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
+                        // load grad colours and alpha
+
                         __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                        __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                        c0 = _mm_unpacklo_epi32 (c0, tnc);
-                        c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                        __m128i a0 = _mm_broadcast_alpha(c0);
-                        a0 = _mm_mulhi_epu16(a0, tqcvr);
+                        __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                        c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                        c0 = _mm_unpacklo_epi8 (c0, c0);
+
+                        __m128i a0 = _mm_mulhi_epu16(c0,xmcover);
                        
                         __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                        tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                        c1 = _mm_unpacklo_epi32 (c1, tnc);
-                        c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                        __m128i a1 = _mm_broadcast_alpha(c1);
-                        a1 = _mm_mulhi_epu16(a1, tqcvr);
+                        __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                        c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                        c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                        __m128i a1 = _mm_mulhi_epu16(c1,xmcover);
+
+                        // unpack alpha
+
+                        a0 = _mm_shufflelo_epi16!255(a0);
+                        a0 = _mm_shufflehi_epi16!255(a0);
+                        a1 = _mm_shufflelo_epi16!255(a1);
+                        a1 = _mm_shufflehi_epi16!255(a1);
 
                        // alpha*source + dest - alpha*dest
 
                         c0 = _mm_mulhi_epu16 (c0,a0);
                         c1 = _mm_mulhi_epu16 (c1,a1);
-                        c0 = _mm_adds_epi16 (c0,d0);
-                        c1 = _mm_adds_epi16 (c1,d1);
+                        c0 = _mm_add_epi16 (c0,d0);
+                        c1 = _mm_add_epi16 (c1,d1);
                         d0 = _mm_mulhi_epu16 (d0,a0);
                         d1 = _mm_mulhi_epu16 (d1,a1);
-                        c0 =  _mm_subs_epi16 (c0, d0);
-                        c1 =  _mm_subs_epi16 (c1, d1);
+                        c0 =  _mm_sub_epi16 (c0,d0);
+                        c1 =  _mm_sub_epi16 (c1,d1);
+                        c0 = _mm_srli_epi16 (c0,8);
+                        c1 = _mm_srli_epi16 (c1,8);
 
                         d0 = _mm_packus_epi16 (c0,c1);
 
@@ -279,67 +290,73 @@ private:
 
             while (bpos < endbit)
             {
-                __m128 rad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
-                rad = _mm_sqrt_ps(rad);
+                __m128 xmRad = _mm_add_ps(_mm_mul_ps(xmT0, xmT0),_mm_mul_ps(xmT1, xmT1));
+                xmRad = _mm_sqrt_ps(xmRad);
 
                 // Integrate delta values
 
-                __m128i tqw = _mm_load_si128(cast(__m128i*)dlptr);
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!4(tqw)); 
-                tqw = _mm_add_epi32(tqw, _mm_slli_si128!8(tqw)); 
-                tqw = _mm_add_epi32(tqw, xmWinding); 
-                xmWinding = _mm_shuffle_epi32!255(tqw);  
+                __m128i idv = _mm_load_si128(cast(__m128i*)dlptr);
+                idv = _mm_add_epi32(idv, _mm_slli_si128!4(idv)); 
+                idv = _mm_add_epi32(idv, _mm_slli_si128!8(idv)); 
+                idv = _mm_add_epi32(idv, xmWinding); 
+                xmWinding = _mm_shuffle_epi32!255(idv);  
                 _mm_store_si128(cast(__m128i*)dlptr,XMZERO);
 
                 // convert grad pos to integer
 
-                __m128i ipos = _mm_cvtps_epi32 (rad);
+                __m128i ipos = _mm_cvtps_epi32 (xmRad);
                 xmT0 = xmT0 + xmStep0;
                 xmT1 = xmT1 + xmStep1;
 
+                ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
+
                 // calculate coverage from winding
 
-                __m128i tcvr = calcCoverage!wr(tqw);
+                __m128i xmcover = calcCoverage32!wr(idv);
 
                 // Load destination pixels
 
-                __m128i d0 = _mm_loadu_si64 (ptr);
-                d0 = _mm_unpacklo_epi8 (d0, XMZERO);
-                __m128i d1 = _mm_loadu_si64 (ptr+2);
-                d1 = _mm_unpacklo_epi8 (d1, XMZERO);
+                __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
+                __m128i d1 = _mm_unpackhi_epi8(d0,d0);
+                d0 = _mm_unpacklo_epi8(d0,d0);
 
                 // load grad colors
 
-                ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
-
-                tcvr = _mm_unpacklo_epi16 (tcvr, tcvr);
-                __m128i tcvr2 = _mm_unpackhi_epi32 (tcvr, tcvr);
-                tcvr = _mm_unpacklo_epi32 (tcvr, tcvr);
-
                 __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
-                __m128i tnc = _mm_loadu_si32 (&lut[ipos.array[1]]);
-                c0 = _mm_unpacklo_epi32 (c0, tnc);
-                c0 = _mm_unpacklo_epi8 (c0, XMZERO);
-                __m128i a0 = _mm_broadcast_alpha(c0);
-                a0 = _mm_mulhi_epu16(a0, tcvr);
+                __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
+                c0 = _mm_unpacklo_epi32 (c0, tmpc0);
+                c0 = _mm_unpacklo_epi8 (c0, c0);
+
+                __m128i a0 = _mm_unpacklo_epi32(xmcover,xmcover);
+                a0 = _mm_mulhi_epu16(a0, c0);
 
                 __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
-                tnc = _mm_loadu_si32 (&lut[ipos.array[3]]);
-                c1 = _mm_unpacklo_epi32 (c1, tnc);
-                c1 = _mm_unpacklo_epi8 (c1, XMZERO);
-                __m128i a1 = _mm_broadcast_alpha(c1);
-                a1 = _mm_mulhi_epu16(a1, tcvr2);
+                __m128i tmpc1 = _mm_loadu_si32 (&lut[ipos.array[3]]);
+                c1 = _mm_unpacklo_epi32 (c1, tmpc1);
+                c1 = _mm_unpacklo_epi8 (c1, c1);
+
+                __m128i a1 = _mm_unpackhi_epi32(xmcover,xmcover);
+                a1 = _mm_mulhi_epu16(a1, c1);
+
+                // unpack alpha
+
+                a0 = _mm_shufflelo_epi16!255(a0);
+                a0 = _mm_shufflehi_epi16!255(a0);
+                a1 = _mm_shufflelo_epi16!255(a1);
+                a1 = _mm_shufflehi_epi16!255(a1);
 
                 // alpha*source + dest - alpha*dest
 
                 c0 = _mm_mulhi_epu16 (c0,a0);
                 c1 = _mm_mulhi_epu16 (c1,a1);
-                c0 = _mm_adds_epi16 (c0,d0);
-                c1 = _mm_adds_epi16 (c1,d1);
+                c0 = _mm_add_epi16 (c0,d0);
+                c1 = _mm_add_epi16 (c1,d1);
                 d0 = _mm_mulhi_epu16 (d0,a0);
                 d1 = _mm_mulhi_epu16 (d1,a1);
-                c0 =  _mm_subs_epi16 (c0, d0);
-                c1 =  _mm_subs_epi16 (c1, d1);
+                c0 =  _mm_sub_epi16 (c0, d0);
+                c1 =  _mm_sub_epi16 (c1, d1);
+                c0 = _mm_srli_epi16 (c0,8);
+                c1 = _mm_srli_epi16 (c1,8);
 
                 d0 = _mm_packus_epi16 (c0,c1);
 
@@ -354,7 +371,7 @@ private:
         }
     }
 
-    // Member variables
+private:
 
     uint* pixels;
     int stride;

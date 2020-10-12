@@ -150,7 +150,7 @@ private:
 
                 // We can skip the span
 
-                if (cover == 0)
+                if (cover < 0x100)
                 {
                     __m128 xskip = _mm_set1_ps(nsb-bpos);
                     xmT0 = _mm_add_ps(xmT0, _mm_mul_ps(xskip,xmStep0));
@@ -198,11 +198,13 @@ private:
 
                         ipos = calcRepeatModeIDX!mode(ipos, lutmsk, lutmsk2);
 
+                        // load destinatin pixels
+
                         __m128i d0 = _mm_load_si128(cast(__m128i*)ptr);
                         __m128i d1 = _mm_unpackhi_epi8(d0,d0);
                         d0 = _mm_unpacklo_epi8(d0,d0);
 
-                        // load grad colors alpha
+                        // load grad colors and alpha
 
                         __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
                         __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
@@ -218,7 +220,7 @@ private:
 
                         __m128i a1 = _mm_mulhi_epu16(c1,xmcover);
 
-                        // broadcast alpha
+                        // unpack alpha
 
                         a0 = _mm_shufflelo_epi16!255(a0);
                         a0 = _mm_shufflehi_epi16!255(a0);
@@ -283,14 +285,14 @@ private:
                 __m128i d1 = _mm_unpackhi_epi8(d0,d0);
                 d0 = _mm_unpacklo_epi8(d0,d0);
 
-                // load grad colors alpha
+                // load grad colors and alpha
 
                 __m128i c0 = _mm_loadu_si32 (&lut[ipos.array[0]]);
                 __m128i tmpc0 = _mm_loadu_si32 (&lut[ipos.array[1]]);
                 c0 = _mm_unpacklo_epi32 (c0, tmpc0);
                 c0 = _mm_unpacklo_epi8 (c0, c0);
-                
-                __m128i a0 = _mm_shuffle_epi32!0x50(xmcover);
+
+                __m128i a0 = _mm_unpacklo_epi32(xmcover,xmcover);
                 a0 = _mm_mulhi_epu16(a0, c0);
 
                 __m128i c1 = _mm_loadu_si32 (&lut[ipos.array[2]]);
@@ -298,10 +300,10 @@ private:
                 c1 = _mm_unpacklo_epi32 (c1, tmpc1);
                 c1 = _mm_unpacklo_epi8 (c1, c1);
 
-                __m128i a1 = _mm_shuffle_epi32!0xFA(xmcover);
+                __m128i a1 = _mm_unpackhi_epi32(xmcover,xmcover);
                 a1 = _mm_mulhi_epu16(a1, c1);
 
-                // broadcast alpha
+                // unpack alpha
 
                 a0 = _mm_shufflelo_epi16!255(a0);
                 a0 = _mm_shufflehi_epi16!255(a0);

@@ -20,8 +20,6 @@ import dg2d.misc;
 
 class Gradient
 {
-    //@disable this(this);
-
     // colour is 32 bit ARGB, pos runs from 0..1 
 
 private:
@@ -36,7 +34,7 @@ public:
 
     /** Create an empty colour gradient, you can specify the size of the lookuptable */    
 
-    this(int lookupLength = 256)
+    this(int lookupLength = 512)
     {
         setLookupLength(lookupLength);
     }
@@ -117,6 +115,20 @@ public:
         return m_isOpaque;
     }
 
+    /** 
+      Initialises the gradient to a sequence of equaly spaced colours.
+        
+      The colours are spaced along the gradient with the first at position 0 and
+      the last positioned at 1.
+    */
+
+    void initEqualSpaced(T...)(T args)
+    {
+        reset();
+        float len = args.length-1;
+        foreach(i, a; args) addStop(i/len, args[i]);
+    }
+
 private:
 
     void initLookup()
@@ -176,14 +188,14 @@ void fillGradientArray(uint[] array, uint color1, uint color2)
     c1 = _mm_unpacklo_epi8 (c1, XMZERO);
 
     uint x;
-    uint delta = 0x1000000 / cast(uint) array.length;
+    uint delta = 0x10000000 / cast(uint) array.length;
 
     array[0] = color1;
 
     foreach (i; 1..array.length)
     {
         x += delta;
-        __m128i pos = _mm_set1_epi16(cast(ushort) (x >> 8));
+        __m128i pos = _mm_set1_epi16(cast(ushort) (x >> 12));
 		
         __m128i tmp0 = _mm_mulhi_epu16 (c0,pos);
         __m128i tmp1 = _mm_mulhi_epu16 (c1,pos);

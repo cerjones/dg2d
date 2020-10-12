@@ -9,7 +9,7 @@ module app;
 
 import std.stdio;
 import window;
-import canvas;
+import dg2d.canvas;
 import font;
 
 import dg2d.path;
@@ -18,18 +18,119 @@ import dg2d.gradient;
 import dg2d.misc;
 import dg2d.rasterizer;
 
-void main()
-{
-//	ProfileAll();
+import demo.panels;
 
-    GFXPanel panel = new GFXPanel();
-    //TestPanel panel = new TestPanel();
-    Window wnd = new Window();
-    wnd.addClient(panel);
+void main()
+{     
+    auto wnd = new Window();
+    wnd.addClient(new MainPanel());
     wnd.createWindow(200,200,800,800,"graphics test");
 	WindowsMessageLoop();
 }
 
+class MainPanel : Widget
+{
+    this()
+    {
+        super(0,0,800,800);
+
+        import rawgfx;
+        font = loadFont(rawfont);
+        font.setSize(15);
+
+        testcvs = new Canvas(800,800);
+
+        panels ~= new SolidPanel1();
+        panels ~= new SolidPanel2();
+        
+        panels ~= new AngularPanel1();
+        
+        panels ~= new LinearPanel1();
+
+        panels ~= new RadialPanel1();
+        panels ~= new RadialPanel2();
+        panels ~= new RadialPanel3();
+        addChild(panels[0]);
+
+        infobtn = new Button(32,10,600,40,"",font);
+        infobtn.setOnClick(&clicked);
+        addChild(infobtn);
+    }
+
+    override void onPaint(Canvas canvas)
+    {
+        canvas.fill(0xFF000000);
+    }
+    
+    override void onTimer()
+    {
+        testcvs.fill(0xFF000000);
+        panels[gfxidx].onPaint(testcvs);
+
+        long t = getPerformanceCounter();
+
+        panels[gfxidx].onPaint(testcvs);
+
+        t =  getPerformanceCounter()-t;
+
+        timings[0..$-1] = timings[1..$];
+        timings[$-1] = getPerformanceFrequency() / (1.0*t);
+
+        //float tfps = getPerformanceFrequency() / (1.0*t);
+        //fps = fps + (tfps-fps)*0.1;
+
+        //fps = max(fps*0.999, getPerformanceFrequency() / (1.0*t));
+        //fps = max(fps, getPerformanceFrequency() / (1.0*t));
+
+        fps = 0;
+        foreach(f; timings) fps = max(fps,f);
+
+        import std.conv;
+        infobtn.setText(panels[gfxidx].getInfo ~ ", FPS = " ~ to!string(fps));
+        repaint();
+    }
+
+    void clicked()
+    {   
+        removeChild(panels[gfxidx]);
+        gfxidx = (gfxidx+1) % panels.length;
+        addChild(panels[gfxidx]);
+        addChild(infobtn);
+        timings = 0;
+        repaint();
+    }
+
+    size_t gfxidx = 0;
+    Font   font;
+    Button infobtn;
+    GFXPanel[] panels;
+    Canvas testcvs;
+    float fps = 0;
+    float[25] timings = 0;
+}
+
+/*
+  Windows performance timer stuff
+*/
+
+long getPerformanceCounter()
+{
+    import core.sys.windows.windows;
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return t.QuadPart;
+}
+
+long getPerformanceFrequency()
+{
+    import core.sys.windows.windows;
+    LARGE_INTEGER f;
+    QueryPerformanceFrequency(&f);
+    return f.QuadPart;
+}
+   
+
+/*
 class TestPanel : Widget
 {
     Path!float path;
@@ -48,151 +149,14 @@ class TestPanel : Widget
 	override void onPaint(Canvas canvas)
   	{
         canvas.fill(0xFF000000);
-        canvas.fill(path,0xFFFFFFFF,WindingRule.EvenOdd);
+        canvas.draw(path,0xFFFFFFFF,WindingRule.EvenOdd);
     }
 }
-
-class GFXPanel : Widget
-{
-	override void onPaint(Canvas canvas)
-  	{
-        canvas.fill(0xFF000000);
-        canvas.setClip(clipoffset,clipoffset,tmpcvs.width-clipoffset,tmpcvs.height-clipoffset);
-
-        switch(fillidx % 4)
-        {
-            case 0:
-                canvas.fill(0xff201520);
-                canvas.fill(*sel_path,0xC08080FF,sel_wind);
-                break;
-            case 1:
-                canvas.fill(0xFF101520);
-                canvas.fillLinear(*sel_path,gfx_grad1,sel_wind,400,400,450,450);
-                break;
-            case 2:
-                canvas.fill(0xFF101520);
-                canvas.fillRadial(*sel_path,gfx_grad2,sel_wind,380,350,500,700,150);
-                break;
-            case 3:
-                canvas.fill(0xFF101520);
-                canvas.fillAngular(*sel_path,gfx_grad1,sel_wind,380,350,500,350,120);
-                break;
-            default: break;      
-        }
-    }
-
-    void buttonClicked()
-    {
-        switch(pathbtn.selectedIdx % 7)
-        {
-            case 0: sel_path = &gfx_area; break;
-            case 1: sel_path = &gfx_borders; break;
-            case 2: sel_path = &gfx_lines50; break;
-            case 3: sel_path = &gfx_lines250; break;
-            case 4: sel_path = &gfx_rects; break;
-            case 5: sel_path = &gfx_text_l; break;
-            case 6: sel_path = &gfx_text_s; break;
-            default: break;
-        }
-
-        sel_wind = WindingRule.NonZero;
-        if (windbtn.selectedIdx == 1) sel_wind = WindingRule.EvenOdd;
-
-        fillidx = fillbtn.selectedIdx;
-
-        bestfps = 0;
-
-        repaint();
-    }
-
-    void shrinkClip()
-    {
-        clipoffset++;
-        repaint();
-    }
-
-    override void onTimer()
-    {
-//		import ldc.intrinsics;
-		import core.sys.windows.windows;
-		import std.conv;
-        
-        tmpcvs.resetView();
-        tmpcvs.fill(0xff274634);
-
-//        long t = readcyclecounter();
-        LARGE_INTEGER t0,t1,f;
-        QueryPerformanceCounter(&t0);
-
-        switch(fillidx % 4)
-        {
-            case 0: tmpcvs.fill(*sel_path,0xFFFFFFFF,sel_wind); break;
-            case 1: tmpcvs.fillLinear(*sel_path,gfx_grad1,sel_wind,300,300,500,500); break;
-            case 2: tmpcvs.fillRadial(*sel_path,gfx_grad2,sel_wind,400,400,500,700,150); break;
-            case 3: tmpcvs.fillAngular(*sel_path,gfx_grad1,sel_wind,400,400,500,400,200); break;
-            default: break;      
-        }
-
-//        t = readcyclecounter()-t;
-//       toptime = min(t,toptime);
-
-        QueryPerformanceCounter(&t1);
-
-        long t3 = cast(ulong) t1.QuadPart - cast(ulong) t0.QuadPart;
-        QueryPerformanceFrequency(&f);
-        float fps = to!float(f.QuadPart) / t3;
-
-        bestfps = max(fps,bestfps);
-        timlbl.setText(to!string(bestfps)~" fps");
-        timlbl.repaint();
-   	}       
-
-    this()
-    {
-        super(0,0,800,800);
-        gfx_font.setSize(22);
-        pathbtn = new Button(32,10,160,40,["block","borders","lines50","lines250","rects","text","text small"],gfx_font);
-        pathbtn.setOnClick(&buttonClicked);
-        addChild(pathbtn);
-        fillbtn = new Button(224,10,160,40,["solid","linear","radail","angular"],gfx_font);
-        fillbtn.setOnClick(&buttonClicked);
-        addChild(fillbtn);
-        windbtn = new Button(416,10,160,40,["non zero","even odd"],gfx_font);
-        windbtn.setOnClick(&buttonClicked);
-        addChild(windbtn);
-        blendbtn = new Button(608,10,160,40,["shrink clip"],gfx_font);
-        blendbtn.setOnClick(&shrinkClip);
-        addChild(blendbtn);
-        timlbl = new Label(300,60,200,30,"",gfx_font);
-        addChild(timlbl);
-        
-        sel_path = &gfx_area;
-
-        tmpcvs = new Canvas(800,800);
-
-    }  
-
-    Button pathbtn;
-    Button fillbtn;
-    Button windbtn;
-    Button blendbtn;
-    Label  timlbl;
-
-    Path!float* sel_path;
-    WindingRule sel_wind = WindingRule.NonZero;
-    int fillidx = 0;
-
-    float bestfps = 0;
-
-    Canvas tmpcvs;
-
-    int clipoffset;
-}
-
+*/
 /*
   Test paths
 */
-
+/*
 Path!float  gfx_area;
 Path!float  gfx_borders;
 Path!float  gfx_lines50;
@@ -244,9 +208,11 @@ static this()
     gfx_grad1 = new Gradient;
     gfx_grad1.addStop(0,0x80fF0000).addStop(0.33,0xff00FF00).addStop(0.66,0xFF0000FF).addStop(1.0,0xFFFF0000);
     gfx_grad2 = new Gradient;
-    gfx_grad2.addStop(0,0xFFa72ac6).addStop(0.5,0x00004092).addStop(0.95,0xFFb0ae00).addStop(1,0xFFa72ac6);
+    //gfx_grad2.addStop(0,0xFFa72ac6).addStop(0.5,0x00004092).addStop(0.95,0xFFb0ae00).addStop(1,0xFFa72ac6);
+    gfx_grad2.addStop(0,0xFFff0000).addStop(0.5,0xff00ff00).addStop(1.0,0xff0000ff);
 }
-
+*/
+/*
 long ProfileGFX(ref Path!float path)
 {
 		import core.sys.windows.windows;
@@ -262,36 +228,17 @@ long ProfileGFX(ref Path!float path)
 
             canvas.fill(0xff274634);
 
-            long t = readcyclecounter();
-            canvas.fill(path, 0xff00ff00, WindingRule.NonZero);
-            t = readcyclecounter()-t;
+            long t = readCycleCounter();
+ //           canvas.fill(path, 0xff00ff00, WindingRule.NonZero);
+            t = readCycleCounter()-t;
             if (t < time) time = t;
    	}       
 		
     return time;
 }
+*/
 
-version(LDC)
-{
-    import ldc.intrinsics: readcyclecounter;
-}
-else version(DigitalMars)
-{
-    long readcyclecounter()
-    {
-        long result;
-        asm nothrow @nogc pure
-        {
-            rdtscp;
-            mov dword ptr [result+0], EAX;
-            mov dword ptr [result+4], EDX;
-        }
-        return result;
-    }
-}
-
-
-
+/*
 void ProfileAll()
 {
 		writeln("area    : ",ProfileGFX(gfx_area));
@@ -302,9 +249,9 @@ void ProfileAll()
 		writeln("text_l  : ",ProfileGFX(gfx_text_l));
 		writeln("text_s  : ",ProfileGFX(gfx_text_s));
 }
-
+*/
 // load an svg path string/
-
+/*
 Path!float loadSvgPath(string txt, float scale)
 {
 	import readpath;
@@ -319,9 +266,9 @@ Path!float loadSvgPath(string txt, float scale)
 
 	return path;
 }
-
+*/
 // dump an svg path string 
-
+/*
 void dumpPath(ref Path!float path, string filename)
 {
     import std.stdio;
@@ -382,9 +329,9 @@ void dumpPath(ref Path!float path, string filename)
 
     file.rawWrite("\" \n");
 }
-
+*/
 // generate random lines
-
+/*
 Path!float randomPath(int n, int seed)
 {
     import std.random;
@@ -402,7 +349,7 @@ Path!float randomPath(int n, int seed)
 
     return path;
 }
-
+*/
 // generate random rounded rects
 /*
 Path!float randomRoundRect(int n, int seed)
@@ -435,6 +382,7 @@ Path!float randomRoundRect(int n, int seed)
     return path;
 }
 */
+/*
 RoundRect!float randomRoundRect()
 {
     import std.random;
@@ -450,10 +398,10 @@ RoundRect!float randomRoundRect()
 
     return rect;
 }
-
+*/
 
 // build some text as a path
-
+/*
 Path!float buildTextPath(Font font, const char[] txt)
 {
     Path!float path;
@@ -491,3 +439,4 @@ Path!float buildTextPath(Font font, const char[] txt)
     }
     return path;
 }
+*/
