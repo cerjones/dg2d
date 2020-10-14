@@ -48,7 +48,7 @@ Rounded rectangle shader. Essentialy a kind of gradient fill where the distance 
 
 ### Examples from the demo app
 
-![Demo Image 1](/images/image1.png)
+![Demo Image 1](/images/Image1.png)
 
 code that generates this image
 
@@ -72,11 +72,11 @@ canvas.draw(
     );
 ```
 
-![Demo Image 2](/images/image2.png)
+![Demo Image 2](/images/Image2.png)
 
 This curently just rips the glyphs from the font file and appends them into a single path. So it's drawn all in one go.
 
-![Demo Image 3](/images/image3.png)
+![Demo Image 3](/images/Image3.png)
 
 code that generates this image
 
@@ -106,7 +106,7 @@ code that generates this image
         );
 ```
 
-![Demo Image 4](/images/image4.png)
+![Demo Image 4](/images/Image4.png)
 
 code that generates this image
 
@@ -133,7 +133,7 @@ canvas.draw(
     );
 ```
 
-![Demo Image 5](/images/image5.png)
+![Demo Image 5](/images/Image5.png)
 
 code that generates this image
 
@@ -151,7 +151,7 @@ canvas.draw(
 
 ```
 
-![Demo Image 6](/images/image6.png)
+![Demo Image 6](/images/Image6.png)
 
 code that generates this image
 
@@ -179,7 +179,7 @@ canvas.draw(
 
 ```
 
-![Demo Image 7](/images/image7.png)
+![Demo Image 7](/images/Image7.png)
 
 code that generates this image
 
