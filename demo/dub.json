@@ -1,0 +1,28 @@
+{
+    "name": "dg2d-demo",
+    "authors": ["Chris"],
+    "copyright": "Copyright © 2018, Chris",
+    "license": "BSL-1.0",
+    "targetType": "executable",
+
+    "importPaths": ["source"],
+    "sourcePaths": ["source"],
+
+    "buildTypes": {
+        "debug": {
+            "buildOptions": ["debugMode", "debugInfo"],
+            "dflags": ["-mixin=\"mixins.txt\""]
+        },
+        "release": {
+            "buildOptions": ["releaseMode", "optimize", "inline"],
+            "dflags": ["-O3","-flto=full"]
+        },
+          "releasedmd": {
+            "buildOptions": ["releaseMode", "optimize", "inline"],
+        },
+    },
+
+    "dependencies": {
+        "dg2d": { "path": ".." }
+    }
+}

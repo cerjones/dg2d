@@ -3,9 +3,9 @@ module demo.panels;
 import std.stdio;
 
 import window;
-import font;
 import rawgfx;
 
+import dg2d.font;
 import dg2d.canvas;
 import dg2d.gradient;
 import dg2d.path;
