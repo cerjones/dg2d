@@ -72,16 +72,14 @@ struct AngularBlit
         yctr = y0;
         float w0 = x1-x0;
         float h0 = y1-y0;
-        float hyp0 = w0*w0 + h0*h0;
-        if (hyp0 < 0.1) hyp0 = 0.1;
-        xstep0 = w0 / hyp0;
-        ystep0 = h0 / hyp0;
         float w1 = x2-x0;
         float h1 = y2-y0;
-        float hyp1 = w1*w1 + h1*h1;
-        if (hyp1 < 0.1) hyp1 = 0.1;
-        xstep1 = w1 / hyp1;
-        ystep1 = h1 / hyp1;
+        float q = w1*h0 - w0*h1;
+        if (abs(q) < 0.1) q = (q < 0) ? -0.1 : 0.1;
+        xstep0 = -h1 / q;
+        ystep0 = w1 / q;
+        xstep1 = h0 / q;
+        ystep1 = -w0 / q;
     }
 
     /** Specifiy the orientation in terms of an circle, for that we need two points,
@@ -436,7 +434,6 @@ __m128 polyAprox(__m128 g)
 
 __m128 fixupQuadrant(__m128 pos, __m128 t0, __m128 t1)
 {
-//    pos = cast(__m128) (cast(__m128i) pos ^ ((cast(__m128i) t0 ^ cast(__m128i) t1) & XMSIGNMASK));
-//    return pos + cast(__m128) (_mm_srai_epi32(cast(__m128i)t0,31) & cast(__m128i) FQTWO);
-return pos;
+    pos = cast(__m128) (cast(__m128i) pos ^ ((cast(__m128i) t0 ^ cast(__m128i) t1) & XMSIGNMASK));
+    return pos + cast(__m128) (_mm_srai_epi32(cast(__m128i)t0,31) & cast(__m128i) FQTWO);
 }

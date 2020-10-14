@@ -316,7 +316,7 @@ class Canvas
         auto anblit = AngularBlit(m_pixels, m_stride, m_height);
         anblit.setPaint(angrad.gradient, wrule, angrad.rmode, angrad.repeats);
         anblit.setCoords(m_view.left+angrad.x0, m_view.top+angrad.y0,
-         m_view.left+angrad.x2, m_view.top+angrad.y2,m_view.left+angrad.y1, m_view.top+angrad.x1);
+         m_view.left+angrad.x1, m_view.top+angrad.y1,m_view.left+angrad.x2, m_view.top+angrad.y2);
         m_rasterizer.rasterize(anblit.getBlitFunc);
     }
 

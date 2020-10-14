@@ -723,7 +723,7 @@ struct Circle(T)
 
     auto asPath()
     {
-        enum PathCmd[17] cmdlut = [
+        enum PathCmd[13] cmdlut = [
             PathCmd.move,PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
             PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
             PathCmd.cubic,PathCmd.cubic,PathCmd.cubic,
@@ -748,7 +748,7 @@ struct Circle(T)
                     case 7: return Point!T(m_circle.x0-m_circle.radius*CBEZ2,m_circle.y0-m_circle.radius);
                     case 8: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0-m_circle.radius*CBEZ2);
                     case 9: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0);
-                    case 10: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0+m_circle.radius+CBEZ2);
+                    case 10: return Point!T(m_circle.x0-m_circle.radius,m_circle.y0+m_circle.radius*CBEZ2);
                     case 11: return Point!T(m_circle.x0-m_circle.radius*CBEZ2,m_circle.y0+m_circle.radius);
                     case 12: return Point!T(m_circle.x0,m_circle.y0+m_circle.radius);
                     default: assert(0);

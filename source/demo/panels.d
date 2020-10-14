@@ -97,7 +97,7 @@ class SolidPanel1 : GFXPanel
         foreach(i; 0..rects.length)
         {
             canvas.draw(
-                rects[i].asPath.chain(rects[i].inset(8,true).asPath.retro),
+                rects[i].asPath.append(rects[i].inset(8,true).asPath.retro),
                 uniform(0, 0xFFFFFFFF, rnd) | 0xff000000,
                 WindingRule.NonZero
                 );
@@ -157,7 +157,7 @@ class SolidPanel2 : GFXPanel
 
     override string getInfo()
     {
-        return "Solid color";
+        return "Solid text";
     }
 
     Path!float path;
@@ -233,8 +233,7 @@ class AngularPanel1 : GFXPanel
   	{
         canvas.draw(
             path,
-         //   AngularGradient(400,400,p0.x,p0.y,p1.x,p1.y,1,grad,RepeatMode.Repeat),
-            AngularGradient(400,400,p0.x,p0.y,p0.y,400-p0.x,1,grad,RepeatMode.Repeat),
+            AngularGradient(400,400,p0.x,p0.y,p1.x,p1.y,1,grad,RepeatMode.Repeat),
             WindingRule.EvenOdd
             );
     }
@@ -261,25 +260,19 @@ class AngularPanel1 : GFXPanel
         super(0,0,800,800);
         
         grad = new Gradient(256);       
-       // grad.initEqualSpaced(0xFFff0000,0xff00ff00,0xFFff0000,0xff0000ff);
-        grad.initEqualSpaced(0xFFff0000,0xff0000ff);
-
-        auto tmp = Path!float();
-        tmp.moveTo(0,0);
-        foreach(i; 0..63)
-           tmp.lineTo(Point!float(400,10).rotate(i*360/64))
-             .lineTo(Point!float(400,-10).rotate(i*360/64)).lineTo(0,0);
+        grad.initEqualSpaced(0xFFff0000,0xff00ff00,0xFF0000ff,0xffffffff);
 
         path = Path!float();
 
-        path.moveTo(0,0);
-        foreach(i; 0..800)
-            path.lineTo(Point!float(i/2.0,0).rotate(i/50.0*360));
-
+        path.moveTo(-400,0);
+        foreach(i; 0..33)
+           path.lineTo(Point!float((i%2) ? 400 : -400, 0).rotate(i*360/66.0))
+           .lineTo(Point!float((i%2) ? -400 : 400, 0).rotate(i*360/66.0));
         path.close();
         path = path.offset(400,400);
-        
-        path.append(tmp.offset(400,400));
+
+       foreach(i; 1..20)
+            path.append(Circle!float(400,400,i*20).asPath);
     }
 
     override string getInfo()
@@ -397,8 +390,8 @@ class RadialPanel2 : GFXPanel
         return "Radial gradient, repeat mode = Repeat";
     }
 
-    Point!float p0 = [400,200];
-    Point!float p1 = [600,400];
+    Point!float p0 = [400,300];
+    Point!float p1 = [700,300];
     Path!float path;
     Gradient grad;
 }

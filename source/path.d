@@ -690,9 +690,9 @@ auto rotate(T,F)(auto ref T path, F angle)
     import std.math;
 
     static if (__traits(isRef, path))
-        return RotatePath(&path, cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+        return RotatePath(&path, sin(angle*2*PI/360), cos(angle*2*PI/360));
     else
-        return RotatePath(path, cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+        return RotatePath(path, sin(angle*2*PI/360), cos(angle*2*PI/360));
 }
 
 /**
@@ -729,11 +729,9 @@ auto rotate(T,F)(auto ref T path, F pivot_x, F pivot_y, F angle)
     }
     import std.math;
     static if (__traits(isRef, path))
-        return RotatePath(&path, cast(FloatType) pivot_x, cast(FloatType) pivot_y,
-            cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+        return RotatePath(&path, pivot_x, pivot_y, sin(angle*2*PI/360), cos(angle*2*PI/360));
     else
-        return RotatePath(path, cast(FloatType) pivot_x, cast(FloatType) pivot_y,
-            cast(FloatType) sin(angle*2*PI/360), cos(angle*2*PI/360));
+        return RotatePath(path, pivot_x, pivot_y, sin(angle*2*PI/360), cos(angle*2*PI/360));
 }
 
 /**
@@ -769,10 +767,10 @@ auto boundingBox(T)(T path)
 }
 
 /**
-  Chain two paths
+  Append two paths
 */
 
-auto chain(T,P)(auto ref T path0, auto ref P path1)
+auto append(T,P)(auto ref T path0, auto ref P path1)
     if (isPathIterator!T && isPathIterator!P
       && is(typeof(T[0].x) == typeof(P[0].x)))
 {

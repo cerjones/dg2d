@@ -42,10 +42,10 @@ class MainPanel : Widget
 
         panels ~= new SolidPanel1();
         panels ~= new SolidPanel2();
-        
-        panels ~= new AngularPanel1();
-        
+              
         panels ~= new LinearPanel1();
+
+        panels ~= new AngularPanel1();
 
         panels ~= new RadialPanel1();
         panels ~= new RadialPanel2();

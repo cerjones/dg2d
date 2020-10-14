@@ -58,19 +58,13 @@ t = (x2-x0)*stepx + (y2-y0)*stepy
 
 For this you define two axes and calculate 't' seprately for each. So...
 
-axis 0 :
+axis 0:
+
 x0,y0 --> x1,y1
 w0 = x1-x0
 h0 = y1-y0
 x = x0 + t0 * w0
 y = y0 + t0 * h0
-
-axis 1 :
-x0,y0 --> x2,y2
-w1 = x2-x0
-h1 = y2-y0
-x = x0 + t1 * w1
-y = y0 + t1 * h1
 
 point of interest ==> qx,qy
 
@@ -92,10 +86,22 @@ qx*h1 + w1 * (y0 + t0 * h0 - qy) = x0*h1 + t0*w0*h1
 qx*h1 + w1*y0 + w1*t0 * h0 - w1*qy = x0*h1 + t0*w0*h1
 w1*t0 * h0 - t0*w0*h1 = x0*h1 - qx*h1 - w1*y0 + w1*qy
 t0(w1*h0 - w0*h1) = h1(x0-qx) + w1(qy-y0)
-t0 = (h1(x0-qx) + w1(qy-y0)) /  (w1*h0 - w0*h1)
+t0 = (h1(x0-qx) + w1(qy-y0)) / (w1*h0 - w0*h1)
 
+stepx0 = h1 / (w1*h0 - w0*h1)
+stepy0 = w1 / (w1*h0 - w0*h1)
 
+t0 = (x0-qx)*stepx0 + (qy-y0)*stepy0
 
+axis 1:
+
+x0,y0 --> x2,y2
+w1 = x2-x0
+h1 = y2-y0
+x = x0 + t1 * w1
+y = y0 + t1 * h1
+
+point of interest ==> qx,qy
 
 and we need to draw a line through x,y, parallel to axis 0, and evaluate 't1' where that line intersects with axis 1
 
@@ -118,6 +124,10 @@ w0*t1*h1- t1 * w1*h0= x0*h0 - qx*h0 - w0*y0 + w0*qy
 t1(w0*h1 - w1*h0) = h0(x0-qx) + w0(qy-y0)
 t1 = (h0(x0-qx) + w0(qy-y0)) / (w0*h1 - w1*h0)
 
+stepx1 = h0 / (w0*h1 - w1*h0)
+stepy1 = w0 / (w0*h1 - w1*h0)
+
+t1 = (x0-qx)*stepx1 + (qy-y0)*stepy1
 
 
 
