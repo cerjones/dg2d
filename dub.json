@@ -1,26 +1,12 @@
 {
-	"name": "dg2d",
-	"authors": ["Chris"],
-	"description": "a",
-	"copyright": "Copyright © 2018, Chris",
-    "license": "Boost 1.0",
-    "targetType": "executable",
+    "name": "dg2d",
+    "authors": ["Chris"],
+    "description": "2D vector graphics rendering library for the D Programming Language.",
+    "copyright": "Copyright © 2018, Chris",
+    "license": "BSL-1.0",
+    "targetType": "library",
 
-	"buildTypes": {
-		"debug": {
-            "buildOptions": ["debugMode", "debugInfo"],
-            "dflags": ["-mixin=\"mixins.txt\""]
-		},
-		"release": {
-			"buildOptions": ["releaseMode", "optimize", "inline"],
-			"dflags": ["-O3","-flto=full"]
-	  	},
-          "releasedmd": {
-			"buildOptions": ["releaseMode", "optimize", "inline"],
-	  	},
-	},
-
-	"dependencies": {
-		"intel-intrinsics": "~>1.0"
-	}
+    "dependencies": {
+        "intel-intrinsics": "~>1.0"
+    }
 }

@@ -12,7 +12,7 @@ import core.sys.windows.windows;
 import std.string;
 import std.conv;
 import dg2d.canvas;
-import font;
+import dg2d.font;
 
 static import gdi = core.sys.windows.wingdi;
 

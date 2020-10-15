@@ -10,7 +10,7 @@ module app;
 import std.stdio;
 import window;
 import dg2d.canvas;
-import font;
+import dg2d.font;
 
 import dg2d.path;
 import dg2d.geometry;

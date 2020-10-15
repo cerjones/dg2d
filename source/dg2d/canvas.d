@@ -15,7 +15,7 @@ import dg2d.path;
 import dg2d.geometry;
 import dg2d.misc;
 import dg2d.gradient;
-import font;
+import dg2d.font;
 
 /*
   Thoughts...

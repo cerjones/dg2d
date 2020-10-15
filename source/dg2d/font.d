@@ -5,7 +5,7 @@
   https://www.boost.org/LICENSE_1_0.txt
 */
 
-module font;
+module dg2d.font;
 
 import dg2d.misc;
 import dg2d.truetype;
