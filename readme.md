@@ -1,6 +1,8 @@
 # DG2D - D Graphics 2D
 ### 2D vector graphics rendering library for the D Programming Language
 
+Note: This very much a work in progress, dont expect a stable API.
+
 ### Features
 
 Fill arbitrary paths, with lines, quads and cubics.
