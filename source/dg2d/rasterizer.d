@@ -11,7 +11,8 @@ module dg2d.rasterizer;
 
 import dg2d.misc;
 import dg2d.path;
-import dg2d.geometry;
+import dg2d.pathiterator;
+import dg2d.rect;
 
 import std.traits;
 
@@ -170,22 +171,24 @@ class Rasterizer
     {
     }
 
-    /*
-      initialise -- This sets the clip rectange, flushes any existing state
-      and preps for drawing.
+    /**
+      This sets the clip rectange, flushes any existing state and preps for
+      drawing.
 
       The clip window left,top is inside, right,bottom is outside. So if the
       window is 100,100 --> 200,200, then pixel 100,100 can be modified but
       pixel 200,200 will not.
+    */
 
-      The rasterizer however needs to allow coordinates that fall directly on
-      the right side and bottom side of the clip even though those pixels are
+    /*
+      The rasterizer needs to allow for coordinates that fall directly on the
+      right side and bottom side of the clip even though those pixels are
       techically outside. It's easier and faster to give the temporary buffers
       a bit extra room for overspill than it is to check and special case
       when it happens.
 
       Also the delta buffer and two clip buffers use differentiated coverage
-      which also causes one extra pixel overspill. If you differentiate a
+      which also causes one extra pixel of overspill. If you differentiate a
       sequence of length N you get a sequence of length N+1. Again it's easier
       and faster to just allow for the overspill than it is to check for and
       special case it.
@@ -458,6 +461,30 @@ class Rasterizer
         m_fprevy = y;
     }
 
+    void quadTo(double x1, double y1, double x2, double y2)
+    {
+        double x01 = (m_fprevx+x1)*0.5;
+        double y01 = (m_fprevy+y1)*0.5;
+        double x12 = (x1+x2)*0.5;
+        double y12 = (y1+y2)*0.5;
+        double xctr = (x01+x12)*0.5;
+        double yctr = (y01+y12)*0.5;
+        double err = (x1-xctr)*(x1-xctr)+(y1-yctr)*(y1-yctr);
+
+        if (err > 0.1)
+        {
+            quadTo(x01,y01,xctr,yctr);
+            quadTo(x12,y12,x2,y2);
+        }
+        else
+        {
+            intLineTo(cast(int)(x2 * fpScale), cast(int)(y2 * fpScale));
+        }
+
+        m_fprevx = x2;
+        m_fprevy = y2;
+    }
+
     void quadTo(float x1, float y1, float x2, float y2)
     {
         float x01 = (m_fprevx+x1)*0.5;
@@ -482,6 +509,45 @@ class Rasterizer
         m_fprevy = y2;
     }
 
+    void cubicTo(double x1, double y1, double x2, double y2, double x3, double y3)
+    {
+        double x01 = (m_fprevx+x1)*0.5;
+        double y01 = (m_fprevy+y1)*0.5;
+        double x12 = (x1+x2)*0.5;
+        double y12 = (y1+y2)*0.5;
+        double x23 = (x2+x3)*0.5;
+        double y23 = (y2+y3)*0.5;
+        
+        double xc0 = (x01+x12)*0.5;
+        double yc0 = (y01+y12)*0.5;
+        double xc1 = (x12+x23)*0.5;
+        double yc1 = (y12+y23)*0.5;
+        double xctr = (xc0+xc1)*0.5;
+        double yctr = (yc0+yc1)*0.5;
+        
+        // this flattenening test code was from a page on the antigrain geometry
+        // website.
+
+        double dx = x3-m_fprevx;
+        double dy = y3-m_fprevy;
+
+        double d2 = abs(((x1 - x3) * dy - (y1 - y3) * dx));
+        double d3 = abs(((x2 - x3) * dy - (y2 - y3) * dx));
+
+        if((d2 + d3)*(d2 + d3) <= 0.5 * (dx*dx + dy*dy))
+        {
+            intLineTo(cast(int)(x3 * fpScale), cast(int)(y3 * fpScale));
+        }
+        else
+        {
+            cubicTo(x01,y01,xc0,yc0,xctr,yctr);
+            cubicTo(xc1,yc1,x23,y23,x3,y3);
+        }
+
+        m_fprevx = x3;
+        m_fprevy = y3;
+    }
+
     void cubicTo(float x1, float y1, float x2, float y2, float x3, float y3)
     {
         float x01 = (m_fprevx+x1)*0.5;
@@ -504,8 +570,8 @@ class Rasterizer
         float dx = x3-m_fprevx;
         float dy = y3-m_fprevy;
 
-        double d2 = abs(((x1 - x3) * dy - (y1 - y3) * dx));
-        double d3 = abs(((x2 - x3) * dy - (y2 - y3) * dx));
+        float d2 = abs(((x1 - x3) * dy - (y1 - y3) * dx));
+        float d3 = abs(((x2 - x3) * dy - (y2 - y3) * dx));
 
         if((d2 + d3)*(d2 + d3) <= 0.5 * (dx*dx + dy*dy))
         {
@@ -521,7 +587,7 @@ class Rasterizer
         m_fprevy = y3;
     }
 
-    void addPath(ref Path!float path)
+    void addPath(ref Path path)
     {
         for (int i = 0; i < path.length; i++)
         {

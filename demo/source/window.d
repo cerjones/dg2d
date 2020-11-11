@@ -11,8 +11,9 @@ import std.stdio;
 import core.sys.windows.windows;
 import std.string;
 import std.conv;
-import dg2d.canvas;
-import dg2d.font;
+import dg2d;
+
+import dg2d.roundrect : dg2dRoundRect = RoundRect; // need as RoundRect is in wingdi too.
 
 static import gdi = core.sys.windows.wingdi;
 
@@ -499,9 +500,9 @@ class Button : Widget
 
     override void onPaint(Canvas c)
     {
-        c.roundRect(0,0,m_width,m_height,10, 0x80a0c0ff);
-        c.roundRect(2,2,m_width-4,m_height-4,8, 0xFF000000);
-//        int tx = cast(int) (m_width - m_font.getStrWidth(m_text)) / 2;
+        c.draw(dg2dRoundRect(0,0,m_width,m_height,10).asPath, 0x80a0c0ff, WindingRule.NonZero);
+        c.draw(dg2dRoundRect(2,2,m_width-2,m_height-2,10).asPath, 0xFF000000, WindingRule.NonZero);
+
         int tx = 20;
         int ty = m_height - cast(int) (m_height - m_font.height) / 2;
         c.drawText(tx,ty,m_text,m_font,0xFFffffff);
@@ -539,8 +540,8 @@ class Label : Widget
 
     override void onPaint(Canvas c)
     {
-        c.roundRect(0,0,m_width,m_height,4, 0x80000000);
-        c.roundRect(1,1,m_width-2,m_height-2,4, 0xFFFFFFFF);
+        c.draw( dg2dRoundRect(0,0,m_width,m_height,4).asPath, 0x80000000, WindingRule.NonZero);
+        c.draw( dg2dRoundRect(1,1,m_width-1,m_height-1,4).asPath, 0xFFFFFFFF, WindingRule.NonZero);
         int tx = cast(int) (m_width - m_font.getStrWidth(m_text)) / 2;
         int ty = m_height - cast(int) (m_height - m_font.height) / 2;
         c.drawText(tx,ty,m_text,m_font,0xFF000000);

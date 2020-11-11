@@ -52,8 +52,7 @@ class Font
 
     ~this()
     {
-        import core.stdc.stdlib : free;
-        free(m_data.ptr);
+        dg2dFree(m_data.ptr);
     }
 
     // setSize, just going on this for now...
@@ -65,7 +64,7 @@ class Font
         m_scale = size * 72.0 / (72.0 * 2048.0); 
     }
 
-    float addChar(ref Path!float path, float x, float y, uint charCode)
+    float addChar(ref Path path, float x, float y, uint charCode)
     {
         int gid = ttCharToGlyph(m_fontinfo, charCode);
         if (gid == 0) return 0.0f;

@@ -1,4 +1,4 @@
-When blending with 8 bit values some arithmetic issues arise, namely that the maximum value for an 8 bit unsugned int is 255 so we should do a plain source over blend like this..
+When blending with 8 bit values some arithmetic issues arise, namely that the maximum value for an 8 bit unsigned int is 255 so we should do a plain source over blend like this..
 
 r = (alpha*src + (255-alpha)*dest) / 255
 

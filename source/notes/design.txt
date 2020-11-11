@@ -1,0 +1,68 @@
+===========================================================
+Where applicable geometric types should implement these ops
+
+offset: x,y
+scale: x,y
+scale: x,y,focus
+rotate: angle
+rotate: angle,focus
+inset: delta
+outset: delta
+intersect:
+combine:
+
+Point ==> offset, scale, rotate
+Rect ==> offset, scale, inset, outset
+RoundRect ==> offset, scale, inset, outset
+
+operator overloads and prefer free functions & functional style
+
+=========
+RoundRect
+
+One with single corner radiuses, one with custom for each corner
+
+SimpleRoundRect & RoundRect
+
+or 
+
+RoundRect & RoundRectEx
+
+struct RRCorner
+{
+    ubyte[4] xRad; // or float
+    ubyte[4] yRad; // of float
+
+    void xRadius(int idx)
+    {
+        return width * 0.5 * xRad[idx]/255.0;
+    }
+
+    void yRadius(int idx)
+    {
+        return width * 0.5 * xRad[idx]/255.0;
+    }
+
+    void setRadiusX(int idx, float xRad)
+    {
+        return width * 0.5 * xRad[idx]/255.0;
+    }
+
+    void yRadiusY(int idx, yRad)
+    {
+        return width * 0.5 * xRad[idx]/255.0;
+    }
+
+
+    void setRadius(Scalar width, Scalar height, Scalar rwidth, Scale rheigth) 
+}
+
+CornerArc
+{
+    float xRad = 0;
+    float yRad = 0;
+}
+
+setRadius(float w, float h) // sets all corners
+setRadius(int idx, float w, float y) // sets specific corner
+

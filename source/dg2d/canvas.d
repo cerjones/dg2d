@@ -12,10 +12,11 @@ module dg2d.canvas;
 import dg2d.gradient;
 import dg2d.rasterizer;
 import dg2d.path;
-import dg2d.geometry;
+import dg2d.pathiterator;
 import dg2d.misc;
 import dg2d.gradient;
 import dg2d.font;
+import dg2d.rect;
 
 /*
   Thoughts...
@@ -169,7 +170,6 @@ class Canvas
     {
         m_stride = roundUpTo(width,4);
         m_pixels = dg2dRealloc(m_pixels, m_stride*height);
-        if (!m_pixels) assert(0);
         m_width = width;
         m_height = height;
         m_view = IRect(0,0,width,height);
@@ -209,7 +209,7 @@ class Canvas
     void fill(T)(T paint)
         if (isPaintable!T)
     {
-        draw(Rect!float(0,0,m_width,m_height).asPath, paint, WindingRule.NonZero);
+        draw(Rect(0,0,m_width,m_height).asPath, paint, WindingRule.NonZero);
     }
 
     /** Fill the rectangle with the specified paint. */
@@ -229,10 +229,10 @@ class Canvas
         draw(Rect!float(x0,y0,x1,y1).asPath, paint, WindingRule.NonZero);
     }
 
-    /** Fill the path with the specified paint */
+    /** Draw the path with the specified paint */
     
     void draw(T)(auto ref T path, Paint paint, WindingRule wr)
-        if (isPathType!T)
+        if (isPathIterator!T)
     {
         if (m_clip.isEmpty) return;
 
@@ -335,35 +335,7 @@ class Canvas
             bigrad.r0, m_view.left+bigrad.x1, m_view.top+bigrad.y1, bigrad.r1);
         m_rasterizer.rasterize(biblit.getBlitFunc);
     }
-
-    void roundRect(float x, float y, float w, float h, float r, uint color)
-    {
-        import dg2d.colorblit;
-
-        if (m_clip.isEmpty) return;
-
-        x += m_view.left;
-        y += m_view.top;
-
-        float lpc = r*0.44772;
-
-        m_rasterizer.initialise(m_clip.left,m_clip.top,m_clip.right, m_clip.bottom);
-
-        m_rasterizer.moveTo(x+r,y);
-        m_rasterizer.lineTo(x+w-r,y);
-        m_rasterizer.cubicTo(x+w-lpc,y,  x+w,y+lpc,  x+w,y+r);
-        m_rasterizer.lineTo(x+w,y+h-r);
-        m_rasterizer.cubicTo(x+w,y+h-lpc,  x+w-lpc,y+h,  x+w-r,y+h);
-        m_rasterizer.lineTo(x+r,y+h);
-        m_rasterizer.cubicTo(x+lpc,y+h,  x,y+h-lpc,  x,y+h-r);
-        m_rasterizer.lineTo(x,y+r);
-        m_rasterizer.cubicTo(x,y+lpc,  x+lpc,y,  x+r,y);
-
-        auto cblit = ColorBlit(m_pixels,m_stride,m_height);
-        cblit.setColor(color);
-        m_rasterizer.rasterize(cblit.getBlitFunc(WindingRule.NonZero));
-    }
-
+    
     /* text stuff needs a lot of work, was just to get it working 
     for now to see if I could parse font correctly */
 
@@ -468,7 +440,7 @@ private:
     IRect        m_view;
     IRect        m_clip;
     Rasterizer   m_rasterizer;
-    Path!float   m_tmppath;     // workspace
+    Path         m_tmppath;     // workspace
 }
 
 /** Viewport and clip rectangle */

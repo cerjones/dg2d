@@ -9,7 +9,6 @@
 
 module dg2d.misc;
 
-import core.stdc.stdlib : malloc, free, realloc;
 public import inteli;
 public import std.math : sqrt, abs;
 
@@ -114,18 +113,15 @@ enum bool isFloatDoubleInt(T) = (is(T == float) || is(T == double) || is (T == i
 ubyte[] loadFileMalloc(string filename)
 {
     import std.stdio;
-    import core.stdc.stdlib : malloc, free, realloc;
 
     File file = File(filename, "r"); 
     if (!file.isOpen) return null;
     if (file.size > size_t.max) return null;
-    ubyte* p = cast(ubyte*) malloc(cast(size_t) file.size);
-    if (p == null) return null;
+    ubyte* p = dg2dMalloc!ubyte(cast(size_t) file.size);   
     ubyte[] tmp = file.rawRead(p[0..cast(size_t)file.size]);
-
     if (tmp.length != file.size)
     {
-        free(p);
+        dg2dFree(p);
         return null;
     }
     else
@@ -239,7 +235,7 @@ public:
         {
             EABlock* tmp = m_root;
             m_root = m_root.next;
-            free(tmp);
+            dg2dFree(tmp);
         }
     }
 
@@ -261,7 +257,7 @@ public:
                 }
                 else
                 {
-                    void* tmp = malloc(EABlock.sizeof);
+                    void* tmp = dg2dMalloc!EABlock();
                     if (!tmp) assert(0); // no mem abandon ship!
                     m_block.next = cast(EABlock*) tmp;
                     m_block = m_block.next;
@@ -272,7 +268,7 @@ public:
             }
             else
             {
-                void* tmp = malloc(EABlock.sizeof);
+                void* tmp = dg2dMalloc!EABlock();
                 if (!tmp) assert(0); // no mem abandon ship!
                 m_root = cast(EABlock*) tmp;
                 m_block = m_root;
@@ -428,6 +424,8 @@ private:
 
     void setCapacity(size_t newcap)
     {
+        import core.stdc.stdlib : realloc;
+
         if (newcap <= m_length) return;
         newcap = roundUpPow2(newcap|15);
         if (newcap == 0) assert(0); // overflowed
@@ -451,12 +449,50 @@ private:
   Adds type safety and overflow / out of mem checks
 */
 
+/* some logging stuff */
+
+private:
+
+struct allocinfo { void* ptr; size_t size; }
+
+allocinfo[] allocations;
+
+void logAlloc(void* ptr, size_t size)
+{
+    foreach(i, ref info; allocations)
+    {
+        if (info.ptr == ptr)
+        {
+            info.size = size;
+            dumpAllocInfo();
+            return;
+        }
+    }
+    allocations ~= allocinfo(ptr, size);
+    dumpAllocInfo();
+}
+
+void dumpAllocInfo()
+{
+    size_t asize = 0;
+    foreach(info; allocations) asize += info.size;
+    import std.stdio;
+    writeln("Allocated = ",asize);
+}
+
+public:
+
 T* dg2dRealloc(T)(T* ptr, size_t length)
 {
+//    logAlloc(ptr, 0); // TESTING
+
     import core.stdc.stdlib : realloc;
     if (length > size_t.max/T.sizeof) assert(0); // Too large
     ptr = cast(T*) realloc(ptr, length * T.sizeof);
-    if (ptr == null) assert(0); // Alloc failed abandon ship!
+    if (ptr == null) assert(0); // Alloc failed abandon ship! 
+
+//    logAlloc(ptr, length * T.sizeof); // TESTING
+
     return ptr;
 }
 
@@ -466,12 +502,17 @@ T* dg2dMalloc(T)(size_t length = 1)
     if (length > size_t.max/T.sizeof) assert(0); // Too large
     T* ptr = cast(T*) malloc(length * T.sizeof);
     if (ptr == null) assert(0); // Alloc failed abandon ship!
+
+//    logAlloc(ptr, length * T.sizeof); // TESTING
+
     return ptr;
 }
 
 void dg2dFree(void* ptr)
 {
     import core.stdc.stdlib : free;
+
+//   logAlloc(ptr, 0); // TESTING
+
     free(ptr);
 }
-

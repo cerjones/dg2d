@@ -9,8 +9,6 @@ module dg2d.truetype;
 
 import dg2d.path;
 
-import core.stdc.stdlib : malloc, free, realloc;
-
 /*
   TrueType font loader.
 
@@ -334,7 +332,7 @@ ubyte[] ttGetGlyphData(ref ttFontInfo info, uint glyphId)
 // add glyph path, adds the glyph path to the another path,
 // note: vertical orientation cartesian, rather that typical GUI of origin at top.
 
-int ttAddGlyphToPath(ref ttFontInfo info, uint glyphId, ref Path!float path,
+int ttAddGlyphToPath(ref ttFontInfo info, uint glyphId, ref Path path,
         float xoff, float yoff, float xscale, float yscale)
 {
     ubyte[] data = ttGetGlyphData(info, glyphId);

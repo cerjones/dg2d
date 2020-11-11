@@ -12,16 +12,13 @@ import window;
 import dg2d.canvas;
 import dg2d.font;
 
-import dg2d.path;
-import dg2d.geometry;
-import dg2d.gradient;
+import dg2d;
 import dg2d.misc;
-import dg2d.rasterizer;
 
 import demo.panels;
 
 void main()
-{     
+{   
     auto wnd = new Window();
     wnd.addClient(new MainPanel());
     wnd.createWindow(200,200,800,800,"graphics test");
@@ -63,24 +60,10 @@ class MainPanel : Widget
     }
     
     override void onTimer()
-    {
-        testcvs.fill(0xFF000000);
-        panels[gfxidx].onPaint(testcvs);
-
-        long t = getPerformanceCounter();
-
-        panels[gfxidx].onPaint(testcvs);
-
-        t =  getPerformanceCounter()-t;
-
+    {   
+        long t = profilePanel(panels[gfxidx],5);
         timings[0..$-1] = timings[1..$];
         timings[$-1] = getPerformanceFrequency() / (1.0*t);
-
-        //float tfps = getPerformanceFrequency() / (1.0*t);
-        //fps = fps + (tfps-fps)*0.1;
-
-        //fps = max(fps*0.999, getPerformanceFrequency() / (1.0*t));
-        //fps = max(fps, getPerformanceFrequency() / (1.0*t));
 
         fps = 0;
         foreach(f; timings) fps = max(fps,f);
@@ -98,6 +81,22 @@ class MainPanel : Widget
         addChild(infobtn);
         timings = 0;
         repaint();
+    }
+
+    long profilePanel(GFXPanel panel, int runs = 1)
+    {
+        testcvs.fill(0xFF000000);
+        panel.onPaint(testcvs);
+        long best = long.max;
+        foreach(i; 0..runs)
+        {
+            testcvs.fill(0xFF000000);
+            long t = getPerformanceCounter();
+            panel.onPaint(testcvs);
+            t = getPerformanceCounter()-t;
+            best = min(best,t);
+        }
+        return best;
     }
 
     size_t gfxidx = 0;
@@ -128,7 +127,7 @@ long getPerformanceFrequency()
     QueryPerformanceFrequency(&f);
     return f.QuadPart;
 }
-   
+
 
 /*
 class TestPanel : Widget
