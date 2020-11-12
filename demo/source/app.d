@@ -8,6 +8,8 @@
 module app;
 
 import std.stdio;
+import core.time;
+
 import window;
 import dg2d.canvas;
 import dg2d.font;
@@ -18,11 +20,12 @@ import dg2d.misc;
 import demo.panels;
 
 void main()
-{   
-    auto wnd = new Window();
-    wnd.addClient(new MainPanel());
-    wnd.createWindow(200,200,800,800,"graphics test");
-	WindowsMessageLoop();
+{
+    loadPlatformWindow();
+    auto wnd = createPlatformWindow();
+    wnd.setContent(new MainPanel());
+    wnd.create(200,200,800,800,"graphics test");
+    runMainLoop();
 }
 
 class MainPanel : Widget
@@ -61,16 +64,17 @@ class MainPanel : Widget
     
     override void onTimer()
     {   
-        long t = profilePanel(panels[gfxidx],5);
-        timings[0..$-1] = timings[1..$];
-        timings[$-1] = getPerformanceFrequency() / (1.0*t);
+        Duration t = profilePanel(panels[gfxidx],5);
+        for (int i = 0; i < timings.length - 1; i++)
+            timings[i] = timings[i + 1];
+        timings[$-1] = 1000_000.0f / t.total!"usecs";
 
         fps = 0;
         foreach(f; timings) fps = max(fps,f);
 
         import std.conv;
         infobtn.setText(panels[gfxidx].getInfo ~ ", FPS = " ~ to!string(fps));
-        repaint();
+        infobtn.repaint();
     }
 
     void clicked()
@@ -83,18 +87,18 @@ class MainPanel : Widget
         repaint();
     }
 
-    long profilePanel(GFXPanel panel, int runs = 1)
+    Duration profilePanel(GFXPanel panel, int runs = 1)
     {
         testcvs.fill(0xFF000000);
         panel.onPaint(testcvs);
-        long best = long.max;
+        Duration best = Duration.max;
         foreach(i; 0..runs)
         {
             testcvs.fill(0xFF000000);
-            long t = getPerformanceCounter();
+            auto t = PerformanceClock.currTime;
             panel.onPaint(testcvs);
-            t = getPerformanceCounter()-t;
-            best = min(best,t);
+            auto d = PerformanceClock.currTime - t;
+            best = min(best, d);
         }
         return best;
     }
@@ -108,26 +112,7 @@ class MainPanel : Widget
     float[25] timings = 0;
 }
 
-/*
-  Windows performance timer stuff
-*/
-
-long getPerformanceCounter()
-{
-    import core.sys.windows.windows;
-    LARGE_INTEGER t;
-    QueryPerformanceCounter(&t);
-    return t.QuadPart;
-}
-
-long getPerformanceFrequency()
-{
-    import core.sys.windows.windows;
-    LARGE_INTEGER f;
-    QueryPerformanceFrequency(&f);
-    return f.QuadPart;
-}
-
+alias PerformanceClock = MonoTimeImpl!(ClockType.precise);
 
 /*
 class TestPanel : Widget
