@@ -304,13 +304,35 @@ public:
 
     void repaint()
     {
-        XClearArea(display, handle, 0, 0, 0, 0, true);
+        XEvent event;
+        event.xexpose.type = Expose;
+        event.xexpose.serial = 0;
+        event.xexpose.send_event = true;
+        event.xexpose.display = display;
+        event.xexpose.window = handle;
+        event.xexpose.x = 0;
+        event.xexpose.y = 0;
+        event.xexpose.width = m_width;
+        event.xexpose.height = m_height;
+        event.xexpose.count = 0;
+        XSendEvent(display, handle, false, ExposureMask, &event);
         XFlush(display);
     }
 
     void repaint(int x0, int y0, int x1, int y1)
     {
-        XClearArea(display, handle, x0, y0, x1 - x0, y1 - y0, true);
+        XEvent event;
+        event.xexpose.type = Expose;
+        event.xexpose.serial = 0;
+        event.xexpose.send_event = true;
+        event.xexpose.display = display;
+        event.xexpose.window = handle;
+        event.xexpose.x = x0;
+        event.xexpose.y = y0;
+        event.xexpose.width = x1 - x0;
+        event.xexpose.height = y1 - y0;
+        event.xexpose.count = 0;
+        XSendEvent(display, handle, false, ExposureMask, &event);
         XFlush(display);
     }
 
