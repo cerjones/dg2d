@@ -63,6 +63,7 @@ alias determineWindowingBackend = memoize!redetermineWindowingBackend;
 
 IWindow createPlatformWindow()
 {
+  
     final switch (determineWindowingBackend)
     {
         version (Windows) case(WindowingBackend.win32): return new Win32Window();
@@ -74,8 +75,8 @@ void loadPlatformWindow()
 {
     final switch (determineWindowingBackend)
     {
-        version (Windows) case(WindowingBackend.win32): RegisterWindowClass(); break;
-        version (linux) case(WindowingBackend.x11): ConnectX11(); break;
+        version (Windows) case(WindowingBackend.win32): RegisterWindowClass();
+        version (linux) case(WindowingBackend.x11): ConnectX11();
     }
 }
 
@@ -83,8 +84,8 @@ void runMainLoop()
 {
     final switch (determineWindowingBackend)
     {
-        version (Windows) case(WindowingBackend.win32): WindowsMessageLoop(); break;
-        version (linux) case(WindowingBackend.x11): X11EventLoop(); break;
+        version (Windows) case(WindowingBackend.win32): WindowsMessageLoop(); 
+        version (linux) case(WindowingBackend.x11): X11EventLoop();
     }
 }
 

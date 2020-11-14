@@ -37,7 +37,7 @@ void RegisterWindowClass()
     wcx.hCursor         = LoadCursor(NULL, IDC_ARROW);
     wcx.hbrBackground   = NULL;
     wcx.lpszMenuName    = NULL;
-    wcx.lpszClassName   = wndclass.ptr;
+    wcx.lpszClassName   = Win32Window.wndclass.ptr;
     wcx.hIconSm         = NULL;
 
     RegisterClassExA(&wcx);
@@ -300,7 +300,6 @@ public:
 
     void onPaint(Canvas canvas)
     {
-
     }
 
     void setContent(Widget widget)
@@ -309,5 +308,4 @@ public:
         widget.m_window = this;
         m_client = widget;
     }
-
 }
