@@ -4,9 +4,11 @@
 dub.selections.json
 *.exe
 *.lib
+*.a
 mixins.txt
 todo.txt
 *.sln
 docs/
 docs.json
 source/notes/todo.txt
+dg2d-demo
