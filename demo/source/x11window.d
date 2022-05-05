@@ -23,6 +23,8 @@ private __gshared X11Window[Window] windowMap;
 void ConnectX11()
 {
     display = XOpenDisplay(null);
+    if (!display)
+        throw new Exception("couldn't open an X display");
 
     WM_DELETE_WINDOW = XInternAtom(display, "WM_DELETE_WINDOW", false);
     _NET_WM_NAME = XInternAtom(display, "_NET_WM_NAME", false);
