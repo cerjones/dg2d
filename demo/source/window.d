@@ -1,6 +1,8 @@
 module window;
 
 import std.functional : memoize;
+import std.process : environment;
+import std.stdio;
 
 import win32;
 import x11window;
@@ -39,20 +41,21 @@ WindowingBackend redetermineWindowingBackend()
         return WindowingBackend.win32;
     else version (linux)
     {
-        import std.process : environment;
-
         switch (environment.get("XDG_SESSION_TYPE"))
         {
+            case("wayland"):
+                writeln("wayland not supported yet; will try to use xwayland");
+                goto case;
             case("x11"): return WindowingBackend.x11;
-            case("wayland"): assert(false, "wayland not supported yet");
             default: break; // check below
         }
 
         if (environment.get("DISPLAY").length)
             return WindowingBackend.x11;
-        else if (environment.get("WAYLAND_DISPLAY").length)
-            assert(false, "wayland not supported yet");
-        else
+        else if (environment.get("WAYLAND_DISPLAY").length) {
+            writeln("wayland not supported yet; will try to use xwayland");
+            return WindowingBackend.x11;
+        } else
             throw new Exception("No supported windowing system detected, please start again in X11 or wayland");
     }
     else
@@ -63,7 +66,7 @@ alias determineWindowingBackend = memoize!redetermineWindowingBackend;
 
 IWindow createPlatformWindow()
 {
-  
+
     final switch (determineWindowingBackend)
     {
         version (Windows) case(WindowingBackend.win32): return new Win32Window();
@@ -76,7 +79,15 @@ void loadPlatformWindow()
     final switch (determineWindowingBackend)
     {
         version (Windows) case(WindowingBackend.win32): RegisterWindowClass();
-        version (linux) case(WindowingBackend.x11): ConnectX11();
+        version (linux) case(WindowingBackend.x11):
+            try ConnectX11();
+            catch (Exception e) {
+                if (environment.get("XDG_SESSION_TYPE") == "wayland"
+                    || environment.get("WAYLAND_DISPLAY").length)
+                    throw new Exception("xwayland not available");
+                else
+                    throw new Exception(e.msg);
+            }
     }
 }
 
